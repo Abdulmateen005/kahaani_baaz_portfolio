@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kahaani Baaz — Admin (Local Only)</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#0d0b09; --bg-panel:#161210; --bg-panel-2:#1b1613;
+    --line-cyan:#e8c37f; --accent-gold:#d9a552; --accent-brick:#c1553c;
+    --text-primary:#f2ede4; --text-muted:#8a8074; --hairline: rgba(232,195,127,0.18);
+    --danger:#c1553c; --ok:#7fbf8f;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg-void); color:var(--text-primary); font-family:'Inter',sans-serif; }
+  .mono{ font-family:'IBM Plex Mono',monospace; }
+  .display{ font-family:'Space Grotesk',sans-serif; }
+  input, textarea, button{ font-family:inherit; }
+
+  /* ---- gate screen ---- */
+  .gate{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:22px;
+    text-align:center; padding:20px;
+  }
+  .gate h1{ font-family:'Space Grotesk',sans-serif; font-size:26px; }
+  .gate p{ color:var(--text-muted); max-width:420px; font-size:14px; }
+  .gate input{
+    background:var(--bg-panel); border:1px solid var(--hairline); color:var(--text-primary);
+    padding:14px 16px; font-size:14px; width:280px; text-align:center; letter-spacing:0.1em;
+  }
+  .gate button{
+    background:var(--accent-gold); color:var(--bg-void); border:none; padding:14px 28px;
+    font-weight:600; cursor:pointer; letter-spacing:0.05em;
+  }
+  .gate .err{ color:var(--danger); font-size:12px; font-family:'IBM Plex Mono',monospace; min-height:16px; }
+  .warn-banner{
+    background:rgba(193,85,60,0.12); border:1px solid rgba(193,85,60,0.4); color:#e0a08f;
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; padding:10px 16px; border-radius:4px; max-width:460px;
+  }
+
+  /* ---- app shell ---- */
+  #app{ display:none; }
+  header{
+    position:sticky; top:0; z-index:10; display:flex; justify-content:space-between; align-items:center;
+    padding:18px 4vw; border-bottom:1px solid var(--hairline); background:rgba(13,11,9,0.9); backdrop-filter:blur(8px);
+    flex-wrap:wrap; gap:12px;
+  }
+  header .brand{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:16px; }
+  header .brand span{ color:var(--line-cyan); font-family:'IBM Plex Mono',monospace; font-size:11px; margin-left:10px; }
+  .btn{
+    background:transparent; border:1px solid var(--hairline); color:var(--text-primary);
+    padding:10px 16px; font-size:12px; letter-spacing:0.04em; cursor:pointer; border-radius:3px;
+    font-family:'IBM Plex Mono',monospace; transition:border-color .2s ease;
+  }
+  .btn:hover{ border-color:var(--accent-gold); }
+  .btn.primary{ background:var(--accent-gold); color:var(--bg-void); border-color:var(--accent-gold); font-weight:600; }
+  .btn.danger{ border-color:rgba(193,85,60,0.5); color:var(--accent-brick); }
+  .btn.danger:hover{ background:rgba(193,85,60,0.15); }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+
+  main{ max-width:1000px; margin:0 auto; padding:40px 4vw 120px; }
+  .status-line{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--text-muted);
+    margin-bottom:30px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  }
+  .status-dot{ width:8px; height:8px; border-radius:50%; background:var(--text-muted); }
+  .status-dot.ok{ background:var(--ok); }
+
+  section.panel{ margin-bottom:56px; }
+  section.panel h2{ font-family:'Space Grotesk',sans-serif; font-size:20px; margin-bottom:6px; }
+  section.panel > p.hint{ color:var(--text-muted); font-size:13px; margin-bottom:22px; }
+
+  .card{ background:var(--bg-panel); border:1px solid var(--hairline); border-radius:6px; padding:22px; margin-bottom:16px; }
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px; }
+  .field input[type=text], .field textarea{
+    width:100%; background:var(--bg-panel-2); border:1px solid var(--hairline); color:var(--text-primary);
+    padding:10px 12px; font-size:14px; border-radius:4px; resize:vertical;
+  }
+  .field textarea{ min-height:70px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .checkbox-row{ display:flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-muted); }
+
+  .frame-list{ display:flex; flex-direction:column; gap:12px; }
+  .frame-item{
+    display:flex; gap:16px; align-items:center; background:var(--bg-panel); border:1px solid var(--hairline);
+    border-radius:6px; padding:12px; flex-wrap:wrap;
+  }
+  .frame-item img, .frame-item .no-thumb{
+    width:64px; height:64px; object-fit:cover; border-radius:4px; background:var(--bg-panel-2); flex-shrink:0;
+  }
+  .frame-item .meta{ flex:1; min-width:180px; }
+  .frame-item .meta .tag{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-primary); }
+  .frame-item .meta .src{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--text-muted); margin-top:3px; }
+  .frame-item .actions{ display:flex; gap:6px; }
+  .frame-item .actions button{ padding:6px 10px; font-size:11px; }
+  .feature-badge{
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; color:var(--accent-gold);
+    border:1px solid rgba(217,165,82,0.5); padding:2px 6px; border-radius:3px; margin-left:8px;
+  }
+
+  .drop{
+    border:1.5px dashed var(--hairline); border-radius:6px; padding:28px; text-align:center;
+    color:var(--text-muted); font-family:'IBM Plex Mono',monospace; font-size:12px; cursor:pointer; margin-bottom:16px;
+  }
+  .drop.has-file{ border-color:var(--accent-gold); color:var(--accent-gold); }
+  .drop input{ display:none; }
+
+  .toast{
+    position:fixed; bottom:24px; right:24px; background:var(--bg-panel); border:1px solid var(--accent-gold);
+    color:var(--text-primary); padding:14px 20px; border-radius:6px; font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+    opacity:0; transform:translateY(10px); transition:all .3s ease; pointer-events:none; z-index:100;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Password gate -->
+<div class="gate" id="gate">
+  <div class="warn-banner mono">This admin tool is for local use only. Never upload admin.html to GitHub Pages, Netlify, or any public host.</div>
+  <h1 class="display">Kahaani Baaz — Admin</h1>
+  <p>Enter the local admin password to manage frames, the reel, and music for the site.</p>
+  <input type="password" id="pw-input" placeholder="Password" autofocus>
+  <button class="btn primary" id="pw-submit">Unlock</button>
+  <div class="err mono" id="pw-err"></div>
+  <p class="mono" style="font-size:11px; opacity:0.6;">Default password: kahaanibaaz2026 — change it near the top of this file.</p>
+</div>
+
+<!-- Main app -->
+<div id="app">
+  <header>
+    <div class="brand display">Kahaani Baaz <span class="mono">// LOCAL ADMIN</span></div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button class="btn" id="btn-open-folder">Open Project Folder</button>
+      <button class="btn" id="btn-load-json" style="display:none;">Load data.json</button>
+      <button class="btn primary" id="btn-save" disabled>Save Changes</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="status-line mono">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">No project connected yet.</span>
+    </div>
+
+    <section class="panel">
+      <h2 class="display">Site Details</h2>
+      <p class="hint">Name, tagline, and about text shown on the public site.</p>
+      <div class="card">
+        <div class="row2">
+          <div class="field"><label>Display Name</label><input type="text" id="f-name"></div>
+          <div class="field"><label>Alias</label><input type="text" id="f-alias"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Instagram Handle</label><input type="text" id="f-handle"></div>
+          <div class="field"><label>Location</label><input type="text" id="f-location"></div>
+        </div>
+        <div class="field"><label>Instagram URL</label><input type="text" id="f-instagram"></div>
+        <div class="field"><label>Hero Tagline (HTML allowed, e.g. &lt;strong&gt;)</label><textarea id="f-herosub"></textarea></div>
+        <div class="field"><label>About Paragraphs (one per line)</label><textarea id="f-about" style="min-height:140px;"></textarea></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="display">Frames (Photos)</h2>
+      <p class="hint">Add a new photo, or manage the ones already on the site.</p>
+
+      <div class="card">
+        <div class="drop" id="drop-frame">Click to choose an image, or drag one here</div>
+        <input type="file" id="frame-file" accept="image/*">
+        <div class="field"><label>Caption / Tag (e.g. FRAME_07 — TITLE)</label><input type="text" id="frame-tag"></div>
+        <div class="field"><label>Alt Text (for accessibility)</label><input type="text" id="frame-alt"></div>
+        <div class="field">
+          <label>Category</label>
+          <select id="frame-category" style="width:100%; background:var(--bg-panel-2); border:1px solid var(--hairline); color:var(--text-primary); padding:10px 12px; font-size:14px; border-radius:4px;">
+            <option value="portraits">Portraits</option>
+            <option value="street-style">Street Style</option>
+            <option value="randoms">Randoms</option>
+          </select>
+        </div>
+        <div class="checkbox-row" style="margin-bottom:16px;">
+          <input type="checkbox" id="frame-feature"><label for="frame-feature" style="margin:0;">Make this the large featured frame</label>
+        </div>
+        <button class="btn primary" id="btn-add-frame">Add Frame</button>
+      </div>
+
+      <div class="frame-list" id="frame-list"></div>
+    </section>
+
+    <section class="panel">
+      <h2 class="display">Reel (Video)</h2>
+      <p class="hint">One featured short video for the "In Motion" section.</p>
+      <div class="card">
+        <div class="drop" id="drop-reel">Click to choose a video, or drag one here</div>
+        <input type="file" id="reel-file" accept="video/*">
+            <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+              <button class="btn" id="btn-add-reel">Add Reel</button>
+              <div class="mono" id="reel-current" style="font-size:11.5px; color:var(--text-muted);"></div>
+            </div>
+            <div class="frame-list" id="reel-list" style="margin-top:12px;"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2 class="display">Background Music</h2>
+      <p class="hint">One looping track, muted by default with a play toggle on the site.</p>
+      <div class="card">
+        <div class="drop" id="drop-music">Click to choose an MP3, or drag one here</div>
+        <input type="file" id="music-file" accept="audio/*">
+        <div class="mono" id="music-current" style="font-size:11.5px; color:var(--text-muted);"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast mono" id="toast"></div>
+
+<script>
+/* ====== change this before sharing this file with anyone ====== */
+const ADMIN_PASSWORD = "kahaanibaaz2026";
+/* ================================================================ */
+
+let dirHandle = null;          // File System Access API handle (Chrome/Edge)
+let siteData = null;           // in-memory data.json
+let pendingFrameFile = null;
+let pendingReelFile = null;
+let pendingMusicFile = null;
+const fsAccessSupported = 'showDirectoryPicker' in window;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+/* ---------- password gate ---------- */
+document.getElementById('pw-submit').addEventListener('click', tryUnlock);
+document.getElementById('pw-input').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+function tryUnlock(){
+  const val = document.getElementById('pw-input').value;
+  if(val === ADMIN_PASSWORD){
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    loadFromServer()
+      .then(data => {
+        siteData = data;
+        migrateReels();
+        setStatus(true, `Loaded project data from the live server. ${siteData.frames.length} frame(s) loaded.`);
+        document.getElementById('btn-save').disabled = false;
+        populateForm();
+      })
+      .catch(() => {
+        setStatus(false, 'Server data not available yet. Use the folder picker or load data.json manually.');
+      });
+  } else {
+    document.getElementById('pw-err').textContent = 'Incorrect password.';
+  }
+}
+
+/* ---------- connect to project folder ---------- */
+document.getElementById('btn-open-folder').addEventListener('click', async ()=>{
+  if(!fsAccessSupported){
+    document.getElementById('btn-load-json').style.display = 'inline-block';
+    toast('Your browser needs manual load — use "Load data.json" instead.');
+    return;
+  }
+  try{
+    dirHandle = await window.showDirectoryPicker();
+    const fileHandle = await dirHandle.getFileHandle('data.json');
+    const file = await fileHandle.getFile();
+    siteData = JSON.parse(await file.text());
+    migrateReels();
+    setStatus(true, `Connected to project folder. ${siteData.frames.length} frame(s) loaded.`);
+    document.getElementById('btn-save').disabled = false;
+    populateForm();
+  }catch(err){
+    toast('Could not open folder or find data.json inside it.');
+  }
+});
+
+/* Fallback: manual data.json upload for browsers without File System Access API */
+document.getElementById('btn-load-json').addEventListener('click', ()=>{
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = async ()=>{
+    const file = input.files[0];
+    if(!file) return;
+    siteData = JSON.parse(await file.text());
+    migrateReels();
+    setStatus(false, `Loaded data.json manually (${siteData.frames.length} frames). Saving will download files for you to place by hand.`);
+    document.getElementById('btn-save').disabled = false;
+    populateForm();
+  };
+  input.click();
+});
+
+function setStatus(connected, text){
+  document.getElementById('status-dot').classList.toggle('ok', connected);
+  document.getElementById('status-text').textContent = text;
+}
+
+/* ---------- populate form from siteData ---------- */
+function populateForm(){
+  const s = siteData.site;
+  document.getElementById('f-name').value = s.name || '';
+  document.getElementById('f-alias').value = s.alias || '';
+  document.getElementById('f-handle').value = s.handle || '';
+  document.getElementById('f-location').value = s.location || '';
+  document.getElementById('f-instagram').value = s.instagram || '';
+  document.getElementById('f-herosub').value = s.heroSub || '';
+  document.getElementById('f-about').value = (s.aboutParagraphs || []).join('\n');
+
+  document.getElementById('reel-current').textContent = siteData.reel ? `Current: ${siteData.reel.src}` : 'No reel set yet.';
+  document.getElementById('music-current').textContent = siteData.music ? `Current: ${siteData.music.src} (${siteData.music.label || ''})` : 'No music set yet.';
+
+  renderFrameList();
+  renderReelList();
+}
+
+function getCategoryLabel(category){
+  if(category === 'street-style') return 'Street Style';
+  if(category === 'randoms') return 'Randoms';
+  return 'Portraits';
+}
+
+function renderFrameList(){
+  const list = document.getElementById('frame-list');
+  list.innerHTML = '';
+  siteData.frames.forEach((f, idx)=>{
+    const el = document.createElement('div');
+    el.className = 'frame-item';
+    el.innerHTML = `
+      <img src="${f._previewUrl || (dirHandle ? '' : '')}" onerror="this.style.display='none'">
+      <div class="meta">
+        <div class="tag mono">${escapeHTML(f.tag)}${f.feature ? '<span class="feature-badge">FEATURED</span>' : ''}</div>
+        <div class="src mono">${escapeHTML(f.src)}</div>
+        <div class="src mono">Category: ${escapeHTML(getCategoryLabel(f.category))}</div>
+      </div>
+      <div class="actions">
+        <button class="btn" data-act="up" data-idx="${idx}">↑</button>
+        <button class="btn" data-act="down" data-idx="${idx}">↓</button>
+        <button class="btn" data-act="feature" data-idx="${idx}">Set Featured</button>
+        <button class="btn danger" data-act="delete" data-idx="${idx}">Delete</button>
+      </div>
+    `;
+    list.appendChild(el);
+    if(dirHandle){
+      resolveThumb(f.src).then(url=>{ if(url){ el.querySelector('img').src = url; } });
+    }
+  });
+  list.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>handleFrameAction(btn.dataset.act, parseInt(btn.dataset.idx)));
+  });
+}
+
+function renderReelList(){
+  const list = document.getElementById('reel-list');
+  list.innerHTML = '';
+  const reels = siteData.reels || [];
+  if(reels.length === 0){
+    document.getElementById('reel-current').textContent = siteData.reel ? `Current: ${siteData.reel.src}` : 'No reel set yet.';
+    return;
+  }
+  document.getElementById('reel-current').textContent = `${reels.length} reel(s)`;
+  reels.forEach((r, idx)=>{
+    const el = document.createElement('div');
+    el.className = 'frame-item';
+    el.innerHTML = `
+      <div class="no-thumb"></div>
+      <div class="meta">
+        <div class="tag mono">${escapeHTML(r.id || r.src)}</div>
+        <div class="src mono">${escapeHTML(r.src)}</div>
+      </div>
+      <div class="actions">
+        <button class="btn" data-act="up" data-idx="${idx}">↑</button>
+        <button class="btn" data-act="down" data-idx="${idx}">↓</button>
+        <button class="btn danger" data-act="delete" data-idx="${idx}">Delete</button>
+      </div>
+    `;
+    list.appendChild(el);
+    if(dirHandle){ resolveThumb(r.src).then(url=>{ if(url){ const img = el.querySelector('.no-thumb'); img.style.backgroundImage = `url(${url})`; img.style.backgroundSize = 'cover'; } }); }
+  });
+  list.querySelectorAll('button').forEach(btn=> btn.addEventListener('click', ()=> handleReelAction(btn.dataset.act, parseInt(btn.dataset.idx))));
+}
+
+function handleReelAction(act, idx){
+  const reels = siteData.reels || [];
+  let changed = false;
+  if(act === 'delete'){
+    if(confirm('Remove this reel from the site?')){ reels.splice(idx,1); changed = true; }
+  } else if(act === 'up' && idx > 0){
+    [reels[idx-1], reels[idx]] = [reels[idx], reels[idx-1]];
+    changed = true;
+  } else if(act === 'down' && idx < reels.length-1){
+    [reels[idx+1], reels[idx]] = [reels[idx], reels[idx+1]];
+    changed = true;
+  }
+  if(changed){
+    renderReelList();
+    void persistSiteData('Reel updated');
+  }
+}
+
+function migrateReels(){
+  if(!siteData) return;
+  if(siteData.reels && Array.isArray(siteData.reels)) return;
+  if(siteData.reel){ siteData.reels = [siteData.reel]; delete siteData.reel; }
+}
+
+async function resolveThumb(relPath){
+  try{
+    const parts = relPath.split('/');
+    let handle = dirHandle;
+    for(let i=0;i<parts.length-1;i++){ handle = await handle.getDirectoryHandle(parts[i]); }
+    const fileHandle = await handle.getFileHandle(parts[parts.length-1]);
+    const file = await fileHandle.getFile();
+    return URL.createObjectURL(file);
+  }catch(err){ return null; }
+}
+
+function handleFrameAction(act, idx){
+  let changed = false;
+  if(act === 'delete'){
+    if(confirm('Remove this frame from the site?')){
+      siteData.frames.splice(idx,1);
+      changed = true;
+    }
+  } else if(act === 'up' && idx > 0){
+    [siteData.frames[idx-1], siteData.frames[idx]] = [siteData.frames[idx], siteData.frames[idx-1]];
+    changed = true;
+  } else if(act === 'down' && idx < siteData.frames.length-1){
+    [siteData.frames[idx+1], siteData.frames[idx]] = [siteData.frames[idx], siteData.frames[idx+1]];
+    changed = true;
+  } else if(act === 'feature'){
+    siteData.frames.forEach((f,i)=> f.feature = (i === idx));
+    changed = true;
+  }
+  if(changed){
+    renderFrameList();
+    void persistSiteData('Frame updated');
+  }
+}
+
+function escapeHTML(str){
+  return String(str||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+async function uploadToServer(file, label){
+  const res = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}`, {
+    method: 'POST',
+    headers: { 'X-Upload-Label': label || 'upload' },
+    body: file
+  });
+  if(!res.ok){ throw new Error('Could not upload file to server.'); }
+  const data = await res.json();
+  return data.path;
+}
+
+async function saveToServer(data){
+  const res = await fetch('/api/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if(!res.ok){ throw new Error('Could not save data to server.'); }
+  return true;
+}
+
+function loadFromServer(){
+  return fetch('/api/site', { cache: 'no-store' })
+    .then(res => {
+      if(!res.ok) throw new Error('Server data unavailable');
+      return res.json();
+    });
+}
+
+async function persistSiteData(message = 'Saved changes'){
+  if(!siteData) return;
+  const clean = JSON.parse(JSON.stringify(siteData, (k,v)=> k.startsWith('_') ? undefined : v));
+  try{
+    await saveToServer(clean);
+    toast(message);
+    populateForm();
+  }catch(err){
+    if(dirHandle){
+      try{
+        const jsonStr = JSON.stringify(clean, null, 2);
+        const fh = await dirHandle.getFileHandle('data.json', { create:true });
+        const writable = await fh.createWritable();
+        await writable.write(jsonStr);
+        await writable.close();
+        toast('Saved data.json to your project folder.');
+        populateForm();
+      }catch(localErr){ toast('Could not save data.json: ' + localErr.message); }
+    } else {
+      const jsonStr = JSON.stringify(clean, null, 2);
+      downloadBlob(new Blob([jsonStr], {type:'application/json'}), 'data.json');
+      toast('Downloaded data.json — replace the one in your project folder.');
+      populateForm();
+    }
+  }
+}
+
+/* ---------- drag/drop + file pickers ---------- */
+function wireDrop(dropId, inputId, onFile){
+  const drop = document.getElementById(dropId);
+  const input = document.getElementById(inputId);
+  drop.addEventListener('click', ()=>input.click());
+  input.addEventListener('change', ()=>{ if(input.files[0]) onFile(input.files[0], drop); });
+  drop.addEventListener('dragover', e=>{ e.preventDefault(); drop.classList.add('has-file'); });
+  drop.addEventListener('dragleave', ()=> drop.classList.remove('has-file'));
+  drop.addEventListener('drop', e=>{
+    e.preventDefault(); drop.classList.remove('has-file');
+    if(e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0], drop);
+  });
+}
+
+wireDrop('drop-frame','frame-file',(file, drop)=>{
+  pendingFrameFile = file;
+  drop.textContent = `Selected: ${file.name}`;
+  drop.classList.add('has-file');
+});
+wireDrop('drop-reel','reel-file',(file, drop)=>{
+  pendingReelFile = file;
+  drop.textContent = `Selected: ${file.name}`;
+  drop.classList.add('has-file');
+});
+wireDrop('drop-music','music-file',(file, drop)=>{
+  pendingMusicFile = file;
+  drop.textContent = `Selected: ${file.name}`;
+  drop.classList.add('has-file');
+});
+
+/* ---------- add frame ---------- */
+document.getElementById('btn-add-frame').addEventListener('click', async ()=>{
+  if(!siteData){ toast('Connect a project folder first.'); return; }
+  if(!pendingFrameFile){ toast('Choose an image first.'); return; }
+  const tag = document.getElementById('frame-tag').value.trim() || 'UNTITLED FRAME';
+  const alt = document.getElementById('frame-alt').value.trim() || tag;
+  const category = document.getElementById('frame-category').value;
+  const feature = document.getElementById('frame-feature').checked;
+  const safeName = 'frame-' + Date.now() + '-' + pendingFrameFile.name.toLowerCase().replace(/[^a-z0-9.]+/g,'-');
+  const relSrc = 'images/' + safeName;
+
+  try{
+    relSrc = await uploadToServer(pendingFrameFile, 'frame');
+  }catch(err){
+    if(dirHandle){
+      try{
+        const imagesDir = await dirHandle.getDirectoryHandle('images', { create:true });
+        const fh = await imagesDir.getFileHandle(safeName, { create:true });
+        const writable = await fh.createWritable();
+        await writable.write(pendingFrameFile);
+        await writable.close();
+      }catch(localErr){ toast('Could not write image file: ' + localErr.message); return; }
+    } else {
+      downloadBlob(pendingFrameFile, safeName);
+      toast(`Downloaded ${safeName} — move it into your images/ folder.`);
+    }
+  }
+
+  if(feature){ siteData.frames.forEach(f=> f.feature = false); }
+  siteData.frames.push({ id: 'frame-' + Date.now(), src: relSrc, alt, tag, category, feature });
+  renderFrameList();
+
+  document.getElementById('frame-tag').value = '';
+  document.getElementById('frame-alt').value = '';
+  document.getElementById('frame-category').value = 'portraits';
+  document.getElementById('frame-feature').checked = false;
+  pendingFrameFile = null;
+  const drop = document.getElementById('drop-frame');
+  drop.textContent = 'Click to choose an image, or drag one here';
+  drop.classList.remove('has-file');
+  await persistSiteData('Frame uploaded and saved');
+});
+
+document.getElementById('btn-add-reel').addEventListener('click', async ()=>{
+  if(!siteData){ toast('Connect a project folder first.'); return; }
+  if(!pendingReelFile){ toast('Choose a video first.'); return; }
+  const safeName = 'reel-' + Date.now() + '-' + pendingReelFile.name.toLowerCase().replace(/[^a-z0-9.]+/g,'-');
+  const relSrc = 'images/' + safeName;
+
+  try{
+    relSrc = await uploadToServer(pendingReelFile, 'reel');
+  }catch(err){
+    if(dirHandle){
+      try{
+        const imagesDir = await dirHandle.getDirectoryHandle('images', { create:true });
+        const fh = await imagesDir.getFileHandle(safeName, { create:true });
+        const writable = await fh.createWritable();
+        await writable.write(pendingReelFile);
+        await writable.close();
+      }catch(localErr){ toast('Could not write video file: ' + localErr.message); return; }
+    } else {
+      downloadBlob(pendingReelFile, safeName);
+      toast(`Downloaded ${safeName} — move it into your images/ folder.`);
+    }
+  }
+
+  siteData.reels = siteData.reels || [];
+  siteData.reels.push({ id: 'reel-' + Date.now(), src: relSrc });
+  renderReelList();
+
+  pendingReelFile = null;
+  const drop = document.getElementById('drop-reel');
+  drop.textContent = 'Click to choose a video, or drag one here';
+  drop.classList.remove('has-file');
+  await persistSiteData('Reel uploaded and saved');
+});
+
+function downloadBlob(fileOrBlob, name){
+  const url = URL.createObjectURL(fileOrBlob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- save ---------- */
+document.getElementById('btn-save').addEventListener('click', async ()=>{
+  if(!siteData) return;
+
+  const s = siteData.site;
+  s.name = document.getElementById('f-name').value.trim();
+  s.alias = document.getElementById('f-alias').value.trim();
+  s.handle = document.getElementById('f-handle').value.trim();
+  s.location = document.getElementById('f-location').value.trim();
+  s.instagram = document.getElementById('f-instagram').value.trim();
+  s.heroSub = document.getElementById('f-herosub').value.trim();
+  s.aboutParagraphs = document.getElementById('f-about').value.split('\n').map(x=>x.trim()).filter(Boolean);
+
+  // handle pending reel
+  if(pendingReelFile){
+    const safeName = 'reel-' + Date.now() + '-' + pendingReelFile.name.toLowerCase().replace(/[^a-z0-9.]+/g,'-');
+    let relSrc = 'images/' + safeName;
+    try{
+      relSrc = await uploadToServer(pendingReelFile, 'reel');
+    }catch(err){
+      if(dirHandle){
+        try{
+          const imagesDir = await dirHandle.getDirectoryHandle('images', { create:true });
+          const fh = await imagesDir.getFileHandle(safeName, { create:true });
+          const writable = await fh.createWritable();
+          await writable.write(pendingReelFile);
+          await writable.close();
+        }catch(localErr){ toast('Could not write video: ' + localErr.message); }
+      } else {
+        downloadBlob(pendingReelFile, safeName);
+      }
+    }
+    siteData.reels = siteData.reels || [];
+    siteData.reels.push({ id: 'reel-' + Date.now(), src: relSrc });
+    pendingReelFile = null;
+  }
+
+  // handle pending music
+  if(pendingMusicFile){
+    const safeName = 'bg-music-' + Date.now() + '-' + pendingMusicFile.name.toLowerCase().replace(/[^a-z0-9.]+/g,'-');
+    let relSrc = 'images/' + safeName;
+    try{
+      relSrc = await uploadToServer(pendingMusicFile, 'music');
+    }catch(err){
+      if(dirHandle){
+        try{
+          const imagesDir = await dirHandle.getDirectoryHandle('images', { create:true });
+          const fh = await imagesDir.getFileHandle(safeName, { create:true });
+          const writable = await fh.createWritable();
+          await writable.write(pendingMusicFile);
+          await writable.close();
+        }catch(localErr){ toast('Could not write audio: ' + localErr.message); }
+      } else {
+        downloadBlob(pendingMusicFile, safeName);
+      }
+    }
+    siteData.music = { src: relSrc, label: pendingMusicFile.name.replace(/\.[^.]+$/,'') };
+    pendingMusicFile = null;
+  }
+
+  await persistSiteData('Saved changes to the live server.');
+});
+</script>
+
+</body>
+</html>

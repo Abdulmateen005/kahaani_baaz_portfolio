@@ -1,0 +1,78 @@
+{
+  "site": {
+    "name": "Abdul Mateen Javaid",
+    "alias": "Kahaani Baaz",
+    "handle": "@kahaani_baazz",
+    "location": "Lahore, Pakistan",
+    "instagram": "https://www.instagram.com/kahaani_baazz",
+    "heroSub": "A photographer and storyteller chasing the few seconds where <strong>light, a stranger, and a wall agree</strong> to make a photograph — shot and shared as <strong>Kahaani Baaz</strong>.",
+    "aboutParagraphs": [
+      "Mateen shoots under the name <strong>Kahaani Baaz</strong> — Urdu for \"the one who tells stories.\" It started as a way to notice things: a chalk portrait sketched onto a sunlit wall, a kitten watching from an alley, a city waking up in gold light before the noise starts.",
+      "The eye is documentary first — <strong>unposed, patient, curious about ordinary moments</strong> — and it moves between still frames and short-form video, looking for the same thing either way: a few honest seconds worth holding onto.",
+      "Every frame gets shared back to the same place it came from — the street, the people on it, and whoever's scrolling past at the right moment."
+    ]
+  },
+  "frames": [
+    {
+      "id": "frame-1783620116639",
+      "src": "images/1783618734699-whatsapp-image-2026-07-09-at-9.48.31-pm-1-.jpeg",
+      "alt": "UNTITLED FRAME",
+      "tag": "UNTITLED FRAME",
+      "category": "portraits",
+      "feature": false
+    },
+    {
+      "id": "frame-1783620185331",
+      "src": "images/1783619335887-whatsapp-image-2026-07-09-at-9.48.30-pm-1-.jpeg",
+      "alt": "UNTITLED FRAME",
+      "tag": "UNTITLED FRAME",
+      "category": "portraits",
+      "feature": false
+    },
+    {
+      "id": "frame-1783620330772",
+      "src": "images/1783618807672-whatsapp-image-2026-07-09-at-9.48.31-pm.jpeg",
+      "alt": "UNTITLED FRAME",
+      "tag": "UNTITLED FRAME",
+      "category": "portraits",
+      "feature": false
+    },
+    {
+      "id": "frame-1783620281987",
+      "src": "images/1783618968493-whatsapp-image-2026-07-09-at-9.48.29-pm.jpeg",
+      "alt": "UNTITLED FRAME",
+      "tag": "UNTITLED FRAME",
+      "category": "portraits",
+      "feature": false
+    },
+    {
+      "id": "frame-1783620410435",
+      "src": "images/1783620145585-whatsapp-image-2026-07-09-at-9.48.30-pm.jpeg",
+      "alt": "UNTITLED FRAME",
+      "tag": "UNTITLED FRAME",
+      "category": "portraits",
+      "feature": false
+    },
+    {
+      "id": "frame-1783620579477",
+      "src": "images/1783620579472-whatsapp-image-2026-07-09-at-11.08.19-pm.jpeg",
+      "alt": "UNTITLED FRAME",
+      "tag": "UNTITLED FRAME",
+      "category": "portraits",
+      "feature": false
+    },
+    {
+      "id": "frame-1783620594438",
+      "src": "images/1783620594434-whatsapp-image-2026-07-09-at-11.08.20-pm.jpeg",
+      "alt": "UNTITLED FRAME",
+      "tag": "UNTITLED FRAME",
+      "category": "portraits",
+      "feature": true
+    }
+  ],
+  "music": {
+    "src": "images/bg-music-islamabad-sunrise.mp3",
+    "label": "Islamabad Sunrise"
+  },
+  "reels": []
+}

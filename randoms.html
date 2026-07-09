@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Randoms | Kahaani Baaz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg-void:#0d0b09;
+      --bg-panel:#161210;
+      --line-cyan:#e8c37f;
+      --accent-gold:#d9a552;
+      --text-primary:#f2ede4;
+      --text-muted:#8a8074;
+      --hairline: rgba(232,195,127,0.16);
+    }
+    *{box-sizing:border-box; margin:0; padding:0;}
+    body{background:var(--bg-void); color:var(--text-primary); font-family:'Inter', sans-serif; line-height:1.6;}
+    a{color:inherit; text-decoration:none;}
+    .page{max-width:1200px; margin:0 auto; padding:48px 24px 80px;}
+    header{display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:36px; border-bottom:1px solid var(--hairline); padding-bottom:20px;}
+    .brand{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.16em; text-transform:uppercase;}
+    .nav{display:flex; gap:12px; flex-wrap:wrap;}
+    .nav a{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted);} 
+    .nav a:hover{color:var(--accent-gold);} 
+    h1{font-family:'Space Grotesk', sans-serif; font-size:clamp(28px, 4vw, 40px); margin-bottom:12px;}
+    .intro{color:var(--text-muted); max-width:700px; margin-bottom:28px;}
+    .gallery{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:20px;}
+    .card{background:var(--bg-panel); border:1px solid var(--hairline); overflow:hidden; position:relative;}
+    .card img{width:100%; height:100%; min-height:320px; object-fit:cover; display:block;}
+    .card .caption{position:absolute; left:12px; bottom:12px; right:12px; padding:10px; background:rgba(13,11,9,0.7); font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-primary);}
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="brand">Kahaani Baaz</div>
+      <div class="nav">
+        <a href="index.html">Home</a>
+        <a href="portraits.html">Portraits</a>
+        <a href="street-style.html">Street Style</a>
+        <a href="randoms.html">Randoms</a>
+      </div>
+    </header>
+    <h1>Randoms</h1>
+    <p class="intro">Small observations, stray details, and unexpected scenes that don’t need a formal category.</p>
+    <div class="gallery" id="gallery"></div>
+  </div>
+
+  <script>
+    const fallbackData = {
+      frames: [
+        { src: 'images/frame-05-alley-watch.jpg', alt: 'Kitten watching from alley', tag: 'Alley Watch', category: 'randoms' },
+        { src: 'images/frame-06-afternoon-nap.jpg', alt: 'Kitten asleep on bench', tag: 'Afternoon Nap', category: 'randoms' }
+      ]
+    };
+
+    async function loadCategoryPage(){
+      const gallery = document.getElementById('gallery');
+      try {
+        const res = await fetch('/api/frames?category=randoms', { cache: 'no-store' });
+        if(!res.ok) throw new Error('API request failed');
+        const data = await res.json();
+        renderFrames(data.frames || []);
+      } catch (error) {
+        renderFrames(fallbackData.frames || []);
+      }
+
+      function renderFrames(frames){
+        const items = (frames || []).filter(frame => (frame.category || 'randoms') === 'randoms');
+        gallery.innerHTML = items.length ? items.map(frame => `
+          <div class="card">
+            <img src="${frame.src}" alt="${frame.alt || ''}">
+            <div class="caption">${frame.tag || 'Untitled'}</div>
+          </div>
+        `).join('') : '<p style="color:var(--text-muted);">No random images yet.</p>';
+      }
+    }
+
+    loadCategoryPage();
+  </script>
+</body>
+</html>

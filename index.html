@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kahaani Baaz — Abdul Mateen Javaid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#0d0b09;
+    --bg-panel:#161210;
+    --bg-panel-2:#1b1613;
+    --line-cyan:#e8c37f;
+    --accent-gold:#d9a552;
+    --accent-brick:#c1553c;
+    --text-primary:#f2ede4;
+    --text-muted:#8a8074;
+    --hairline: rgba(232,195,127,0.16);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg-void);
+    color:var(--text-primary);
+    font-family:'Inter', sans-serif;
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  ::selection{ background:var(--accent-gold); color:#0d0b09; }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  .display{ font-family:'Space Grotesk', sans-serif; }
+  a{ color:inherit; text-decoration:none; }
+
+  .grain{
+    position:fixed; inset:0; pointer-events:none; z-index:1; opacity:0.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:22px 5vw;
+    backdrop-filter:blur(10px);
+    background:rgba(13,11,9,0.72);
+    border-bottom:1px solid var(--hairline);
+  }
+  .brand{ font-size:15px; letter-spacing:0.02em; font-weight:600; }
+  nav ul{ display:flex; gap:32px; list-style:none; }
+  nav a{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--text-muted);
+    transition:color .25s ease;
+  }
+  nav a:hover{ color:var(--line-cyan); }
+
+  .hero{
+    min-height:100vh;
+    display:flex; flex-direction:column; justify-content:center;
+    padding:0 5vw;
+    position:relative;
+    /* Background image (place your image at images/hero-bg.jpg) with subtle gradients on top for legibility */
+    background:
+      radial-gradient(ellipse at 75% 15%, rgba(232,195,127,0.09), transparent 55%),
+      radial-gradient(ellipse at 15% 85%, rgba(193,85,60,0.08), transparent 50%),
+      linear-gradient(rgba(13,11,9,0.45), rgba(13,11,9,0.25)),
+      url("images/hero-bg.jpg") center/cover no-repeat;
+    background-size: cover;
+    background-position: center;
+  }
+  .scanlines{
+    position:absolute; inset:0; pointer-events:none; opacity:0.3;
+    background:repeating-linear-gradient(to bottom, transparent 0 3px, rgba(232,195,127,0.02) 3px 4px);
+  }
+  .hero-eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--line-cyan); margin-bottom:22px; display:flex; align-items:center; gap:10px;
+  }
+  .hero-eyebrow::before{ content:''; width:22px; height:1px; background:var(--line-cyan); }
+  .hero h1{
+    font-family:'Space Grotesk', sans-serif; font-weight:600;
+    font-size:clamp(38px, 7vw, 92px); line-height:1.02; letter-spacing:-0.01em; max-width:16ch;
+  }
+  .hero h1 .alias{
+    color:var(--bg-void); -webkit-text-stroke:1.5px var(--accent-gold); display:block;
+  }
+  .hero-sub{ margin-top:28px; max-width:620px; font-size:clamp(15px,2vw,19px); color:var(--text-muted); }
+  .hero-sub strong{ color:var(--text-primary); font-weight:500; }
+  .hero-meta{ margin-top:56px; display:flex; gap:40px; flex-wrap:wrap; }
+  .hero-meta div{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-muted); letter-spacing:0.06em; }
+  .hero-meta div b{ display:block; color:var(--text-primary); font-size:13px; margin-bottom:4px; font-weight:500; }
+  .scroll-cue{
+    position:absolute; bottom:40px; left:5vw;
+    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.15em;
+    color:var(--text-muted); text-transform:uppercase; display:flex; align-items:center; gap:10px;
+  }
+  .scroll-cue::after{
+    content:''; width:1px; height:34px; background:linear-gradient(var(--line-cyan), transparent);
+    animation:scrollpulse 2s ease-in-out infinite;
+  }
+  @keyframes scrollpulse{ 0%,100%{opacity:.3} 50%{opacity:1} }
+
+  section{ padding:140px 5vw; position:relative; z-index:2; }
+  .section-head{
+    display:flex; justify-content:space-between; align-items:flex-end;
+    margin-bottom:64px; gap:24px; flex-wrap:wrap;
+    border-bottom:1px solid var(--hairline); padding-bottom:24px;
+  }
+  .section-tag{
+    font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.16em;
+    color:var(--line-cyan); text-transform:uppercase; margin-bottom:12px; display:block;
+  }
+  .section-head h2{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:clamp(28px,4vw,46px); }
+  .section-head p{ max-width:360px; color:var(--text-muted); font-size:14px; }
+
+  .about-grid{ display:grid; grid-template-columns:0.9fr 1.1fr; gap:70px; align-items:start; }
+  .about-grid p{ font-size:clamp(16px,1.8vw,20px); color:#d6cdc1; margin-bottom:20px; max-width:60ch; }
+  .about-grid p strong{ color:var(--text-primary); }
+  .id-card{ border:1px solid var(--hairline); background:var(--bg-panel); padding:26px; position:relative; }
+  .id-card::before{
+    content:'PROFILE'; position:absolute; top:-11px; left:20px; background:var(--bg-void);
+    padding:0 10px; font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:0.12em; color:var(--line-cyan);
+  }
+  .id-row{ display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px dashed var(--hairline); font-family:'IBM Plex Mono', monospace; font-size:12.5px; gap:16px; }
+  .id-row:last-child{ border-bottom:none; }
+  .id-row span:first-child{ color:var(--text-muted); white-space:nowrap; }
+  .id-row span:last-child{ color:var(--text-primary); text-align:right; }
+
+  .frame-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:26px; }
+  .frame-grid .feature{ grid-column:span 2; grid-row:span 2; }
+  .frame{ position:relative; overflow:hidden; background:var(--bg-panel); aspect-ratio:3/4; }
+  .feature.frame{ aspect-ratio:auto; height:100%; min-height:520px; }
+  .frame img, .frame video{
+    width:100%; height:100%; object-fit:cover; display:block;
+    filter:saturate(0.96) contrast(1.03);
+    transition:transform .7s cubic-bezier(.2,.8,.2,1), filter .5s ease;
+  }
+  .frame:hover img, .frame:hover video{ transform:scale(1.045); filter:saturate(1.06) contrast(1.05); }
+  .frame::before, .frame::after, .frame .bl, .frame .br{
+    content:''; position:absolute; width:18px; height:18px; z-index:3; border-color:var(--accent-gold); opacity:0; transition:opacity .3s ease;
+  }
+  .frame::before{ top:10px; left:10px; border-top:2px solid; border-left:2px solid; }
+  .frame::after{ top:10px; right:10px; border-top:2px solid; border-right:2px solid; }
+  .frame .bl{ bottom:10px; left:10px; border-bottom:2px solid; border-left:2px solid; }
+  .frame .br{ bottom:10px; right:10px; border-bottom:2px solid; border-right:2px solid; }
+  .frame:hover::before, .frame:hover::after, .frame:hover .bl, .frame:hover .br{ opacity:1; }
+  .frame-tag{
+    position:absolute; left:14px; bottom:14px; right:14px; z-index:3;
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em;
+    color:#fff; text-shadow:0 1px 6px rgba(0,0,0,0.8);
+    opacity:0; transform:translateY(6px); transition:all .35s ease;
+  }
+  .frame:hover .frame-tag{ opacity:1; transform:translateY(0); }
+  .frame-scrim{
+    position:absolute; inset:0; z-index:2;
+    background:linear-gradient(to top, rgba(0,0,0,0.65), transparent 45%);
+    opacity:0; transition:opacity .35s ease;
+  }
+  .frame:hover .frame-scrim{ opacity:1; }
+
+  .frame-subpages{ display:flex; flex-wrap:wrap; gap:14px; margin-bottom:28px; }
+  .frame-subpage-link{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:10px 16px; border:1px solid var(--hairline); color:var(--text-primary);
+    background:rgba(255,255,255,0.02); font-family:'IBM Plex Mono', monospace;
+    font-size:11px; letter-spacing:0.12em; text-transform:uppercase; transition:all .25s ease;
+  }
+  .frame-subpage-link:hover{ border-color:var(--accent-gold); color:var(--accent-gold); transform:translateY(-2px); }
+
+  .reel-wrap{ display:grid; grid-template-columns:0.85fr 1.15fr; gap:60px; align-items:center; }
+  .reel-frame{
+    position:relative; border:1px solid var(--hairline); overflow:hidden;
+    aspect-ratio:9/16; max-height:640px; margin:0 auto; width:100%;
+  }
+  .reel-frame video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .reel-frame::before, .reel-frame::after, .reel-frame .bl, .reel-frame .br{
+    content:''; position:absolute; width:20px; height:20px; z-index:3; border-color:var(--accent-gold);
+  }
+  .reel-frame::before{ top:12px; left:12px; border-top:2px solid; border-left:2px solid; }
+  .reel-frame::after{ top:12px; right:12px; border-top:2px solid; border-right:2px solid; }
+  .reel-frame .bl{ bottom:12px; left:12px; border-bottom:2px solid; border-left:2px solid; }
+  .reel-frame .br{ bottom:12px; right:12px; border-bottom:2px solid; border-right:2px solid; }
+  .reel-copy p{ font-size:clamp(16px,1.8vw,19px); color:#d6cdc1; margin-bottom:20px; max-width:52ch; }
+  .reel-copy p strong{ color:var(--text-primary); }
+
+  /* Improved reels column */
+  .reels-column{ display:flex; flex-direction:column; gap:28px; align-items:center; }
+  .reel-card{ width:100%; max-width:420px; border:1px solid var(--hairline); background:var(--bg-panel); overflow:hidden; border-radius:8px; position:relative; }
+  .reel-card video{ width:100%; height:640px; object-fit:cover; display:block; background:#000; }
+  @media (max-width:640px){ .reel-card video{ height:520px; } }
+  .reel-overlay{ position:absolute; left:12px; top:12px; z-index:6; display:flex; gap:8px; align-items:center; }
+  .mute-toggle{ background:rgba(13,11,9,0.6); border:1px solid var(--hairline); color:var(--text-muted); padding:8px 10px; border-radius:6px; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:12px; }
+  .reel-caption{ position:absolute; left:12px; bottom:12px; color:var(--text-primary); font-family:'IBM Plex Mono',monospace; font-size:13px; text-shadow:0 2px 8px rgba(0,0,0,0.7); }
+
+  .contact-wrap{
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:40px;
+    border:1px solid var(--hairline); padding:60px 50px; position:relative;
+    background:radial-gradient(ellipse at 20% 20%, rgba(217,165,82,0.07), transparent 60%);
+  }
+  .contact-wrap h2{ font-family:'Space Grotesk', sans-serif; font-size:clamp(28px,4.5vw,52px); font-weight:600; max-width:12ch; }
+  .ig-link{
+    display:inline-flex; align-items:center; gap:14px;
+    font-family:'IBM Plex Mono', monospace; font-size:14px; letter-spacing:0.05em;
+    border:1px solid var(--accent-gold); color:var(--accent-gold);
+    padding:16px 26px; transition:all .3s ease;
+  }
+  .ig-link:hover{ background:var(--accent-gold); color:var(--bg-void); }
+  .ig-link svg{ width:16px; height:16px; }
+
+  footer{
+    padding:34px 5vw; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-muted); letter-spacing:0.06em;
+    border-top:1px solid var(--hairline);
+  }
+
+  [data-reveal]{ opacity:0; transform:translateY(24px); transition:opacity .8s ease, transform .8s ease; }
+  [data-reveal].in{ opacity:1; transform:translateY(0); }
+
+  .music-toggle{
+    position:fixed; right:22px; bottom:22px; z-index:60;
+    display:flex; align-items:center; gap:10px;
+    background:rgba(13,11,9,0.75); backdrop-filter:blur(10px);
+    border:1px solid var(--hairline); border-radius:999px;
+    padding:10px 16px 10px 12px; cursor:pointer;
+    transition:border-color .3s ease;
+  }
+  .music-toggle:hover{ border-color:var(--accent-gold); }
+  .music-toggle .icon{
+    width:30px; height:30px; border-radius:50%; border:1px solid var(--accent-gold);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .music-toggle svg{ width:13px; height:13px; fill:var(--accent-gold); }
+  .music-toggle .pause-icon{ display:none; }
+  .music-toggle.playing .play-icon{ display:none; }
+  .music-toggle.playing .pause-icon{ display:block; }
+  .music-toggle span.label{
+    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.1em;
+    color:var(--text-muted); text-transform:uppercase; white-space:nowrap;
+  }
+  .music-toggle.playing span.label{ color:var(--accent-gold); }
+  .bars{ display:flex; align-items:center; gap:2px; height:12px; margin-left:2px; }
+  .bars span{ width:2px; background:var(--accent-gold); height:4px; border-radius:1px; opacity:0.4; }
+  .music-toggle.playing .bars span{ animation:eq 0.9s ease-in-out infinite; opacity:1; }
+  .bars span:nth-child(1){ animation-delay:0s; }
+  .bars span:nth-child(2){ animation-delay:0.2s; }
+  .bars span:nth-child(3){ animation-delay:0.4s; }
+  @keyframes eq{ 0%,100%{ height:4px; } 50%{ height:12px; } }
+
+  .load-state{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.1em;
+    color:var(--text-muted); text-transform:uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div id="app">
+  <div class="load-state mono">Loading…</div>
+</div>
+
+<script>
+const fallbackData = {
+  site: {
+    name: 'Abdul Mateen Javaid',
+    alias: 'Kahaani Baaz',
+    handle: '@kahaani_baazz',
+    location: 'Lahore, Pakistan',
+    instagram: 'https://www.instagram.com/kahaani_baazz',
+    heroSub: 'A photographer and storyteller chasing the few seconds where <strong>light, a stranger, and a wall agree</strong> to make a photograph — shot and shared as <strong>Kahaani Baaz</strong>.',
+    aboutParagraphs: [
+      'Mateen shoots under the name <strong>Kahaani Baaz</strong> — Urdu for "the one who tells stories." It started as a way to notice things: a chalk portrait sketched onto a sunlit wall, a kitten watching from an alley, a city waking up in gold light before the noise starts.',
+      'The eye is documentary first — <strong>unposed, patient, curious about ordinary moments</strong> — and it moves between still frames and short-form video, looking for the same thing either way: a few honest seconds worth holding onto.',
+      'Every frame gets shared back to the same place it came from — the street, the people on it, and whoever\'s scrolling past at the right moment.'
+    ]
+  },
+  frames: [
+    { id: 'frame-01', src: 'images/1783618734699-whatsapp-image-2026-07-09-at-9.48.31-pm-1-.jpeg', alt: 'Uploaded portrait image', tag: 'FRAME_01 — PORTRAIT', category: 'portraits', feature: true },
+    { id: 'frame-02', src: 'images/1783618807672-whatsapp-image-2026-07-09-at-9.48.31-pm.jpeg', alt: 'Uploaded portrait image', tag: 'FRAME_02 — PORTRAIT', category: 'portraits', feature: false },
+    { id: 'frame-03', src: 'images/1783618968493-whatsapp-image-2026-07-09-at-9.48.29-pm.jpeg', alt: 'Uploaded portrait image', tag: 'FRAME_03 — PORTRAIT', category: 'portraits', feature: false },
+    { id: 'frame-04', src: 'images/1783619335887-whatsapp-image-2026-07-09-at-9.48.30-pm-1-.jpeg', alt: 'Uploaded portrait image', tag: 'FRAME_04 — PORTRAIT', category: 'portraits', feature: false }
+  ],
+  music: { src: 'images/bg-music-islamabad-sunrise.mp3', label: 'Islamabad Sunrise' },
+  reels: [
+    { src: 'images/reel-1783602001093-whatsapp-video-2026-07-09-at-4.22.55-pm.mp4' },
+    { id: 'reel-1783602445800', src: 'images/reel-1783602445316-whatsapp-video-2026-07-09-at-4.29.16-pm.mp4' }
+  ]
+};
+
+async function init(){
+  let data;
+  try{
+    const res = await fetch('/api/site', { cache: 'no-store' });
+    if(!res.ok) throw new Error('API request failed');
+    data = await res.json();
+  }catch(err){
+    data = fallbackData;
+  }
+
+  const s = data.site;
+  const frames = data.frames || [];
+  const reels = data.reels && Array.isArray(data.reels) ? data.reels : (data.reel ? [data.reel] : []);
+  const music = data.music;
+
+  const featureFrame = frames.find(f => f.feature) || frames[0];
+  const restFrames = frames.filter(f => f.id !== (featureFrame && featureFrame.id));
+
+  function frameHTML(f, i, isFeature){
+    return `
+    <div class="frame${isFeature ? ' feature' : ''}">
+      <img src="${f.src}" alt="${escapeHTML(f.alt || '')}" loading="lazy">
+      <div class="frame-scrim"></div>
+      <span class="bl"></span><span class="br"></span>
+      <div class="frame-tag mono">${escapeHTML(f.tag || '')}</div>
+    </div>`;
+  }
+
+  function escapeHTML(str){
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+
+  const framesMarkup = [
+    featureFrame ? frameHTML(featureFrame, 0, true) : '',
+    ...restFrames.map((f,i) => frameHTML(f, i, false))
+  ].join('');
+
+  document.getElementById('app').innerHTML = `
+  <header>
+    <div class="brand mono">KAHAANI_BAAZ</div>
+    <nav>
+      <ul>
+        <li><a href="#about">About</a></li>
+        <li><a href="#frames">Frames</a></li>
+        ${reels.length ? '<li><a href="#reel">Reel</a></li>' : ''}
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="scanlines"></div>
+    <div class="hero-eyebrow mono">${escapeHTML(s.location)} — Photography &amp; Storytelling</div>
+    <h1 class="display">${escapeHTML(s.name)}<span class="alias">aka ${escapeHTML(s.alias)}</span></h1>
+    <p class="hero-sub">${s.heroSub}</p>
+    <div class="hero-meta">
+      <div><b>Based In</b>${escapeHTML(s.location)}</div>
+      <div><b>Medium</b>Street &amp; Documentary Photography</div>
+      <div><b>Also On</b>Short-Form Video / Reels</div>
+    </div>
+    <div class="scroll-cue">Scroll</div>
+  </section>
+
+  <section id="about">
+    <div class="section-head" data-reveal>
+      <div>
+        <span class="section-tag">01 / About</span>
+        <h2 class="display">Storytellers, unite</h2>
+      </div>
+      <p>The mantra behind the name — and the reason the camera is always close by.</p>
+    </div>
+    <div class="about-grid" data-reveal>
+      <div>
+        ${(s.aboutParagraphs || []).map(p => `<p>${p}</p>`).join('')}
+      </div>
+      <div class="id-card mono">
+        <div class="id-row"><span>NAME</span><span>${escapeHTML(s.name)}</span></div>
+        <div class="id-row"><span>ALIAS</span><span>${escapeHTML(s.alias)}</span></div>
+        <div class="id-row"><span>ROLE</span><span>Photographer &amp; Content Creator</span></div>
+        <div class="id-row"><span>BASE</span><span>${escapeHTML(s.location)}</span></div>
+        <div class="id-row"><span>MEDIUM</span><span>Street &amp; Documentary Photo</span></div>
+        <div class="id-row"><span>FORMAT</span><span>Stills + Short-Form Video</span></div>
+        <div class="id-row"><span>MANTRA</span><span>Storytellers, unite</span></div>
+        <div class="id-row"><span>PLATFORM</span><span>${escapeHTML(s.handle)}</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="frames">
+    <div class="section-head" data-reveal>
+      <div>
+        <span class="section-tag">02 / Frames</span>
+        <h2 class="display">Stories, shot as ${escapeHTML(s.alias)}</h2>
+      </div>
+      <p>${frames.length} frame${frames.length === 1 ? '' : 's'} — updated as new work goes up.</p>
+    </div>
+    <div class="frame-subpages" data-reveal>
+      <a class="frame-subpage-link" href="portraits.html">Portraits</a>
+      <a class="frame-subpage-link" href="street-style.html">Street Style</a>
+      <a class="frame-subpage-link" href="randoms.html">Randoms</a>
+    </div>
+    <div class="frame-grid" data-reveal>
+      ${framesMarkup}
+    </div>
+  </section>
+
+  ${reels.length ? `
+  <section id="reel">
+    <div class="section-head" data-reveal>
+      <div>
+        <span class="section-tag">03 / In Motion</span>
+        <h2 class="display">Stories that move</h2>
+      </div>
+      <p>The same eye, shot for the scroll.</p>
+    </div>
+    <div class="reel-grid" data-reveal>
+      <div class="reels-column">
+      ${reels.map(r => `
+        <div class="reel-card" data-reel-id="${escapeHTML(r.id || '')}">
+          <video src="${r.src}" muted loop playsinline preload="metadata" webkit-playsinline></video>
+          <div class="reel-overlay">
+            <button class="mute-toggle mono">Unmute</button>
+          </div>
+          <div class="reel-caption mono">${escapeHTML(r.id || '')}</div>
+        </div>
+      `).join('')}
+      </div>
+    </div>
+  </section>` : ''}
+
+  <section id="contact">
+    <div class="contact-wrap" data-reveal>
+      <h2 class="display">Follow the stories, one frame at a time.</h2>
+      <a class="ig-link" href="${s.instagram}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4.2"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/></svg>
+        ${escapeHTML(s.handle)} on Instagram
+      </a>
+    </div>
+  </section>
+
+  <footer>
+    <span>© ${new Date().getFullYear()} ${escapeHTML(s.alias)} — ${escapeHTML(s.name)}</span>
+    <span>${escapeHTML(s.location)}</span>
+  </footer>
+
+  ${music ? `
+  <audio id="bg-music" loop preload="none">
+    <source src="${music.src}" type="audio/mpeg">
+  </audio>
+  <div class="music-toggle mono" id="music-toggle" role="button" tabindex="0" aria-label="Play background music">
+    <div class="icon">
+      <svg class="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      <svg class="pause-icon" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+    </div>
+    <span class="label">Music</span>
+    <div class="bars"><span></span><span></span><span></span></div>
+  </div>` : ''}
+  `;
+
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); } });
+  }, { threshold:0.12 });
+  document.querySelectorAll('[data-reveal]').forEach(el=>io.observe(el));
+
+  // Reels: play when mostly visible, pause others, allow mute toggle
+  try{
+    const reelCards = document.querySelectorAll('.reel-card');
+    if(reelCards.length){
+      const playObserver = new IntersectionObserver((entries)=>{
+        entries.forEach(entry=>{
+          const card = entry.target;
+          const vid = card.querySelector('video');
+          if(entry.intersectionRatio > 0.55){
+            // pause others
+            document.querySelectorAll('.reel-card video').forEach(v=>{ if(v !== vid) v.pause(); });
+            vid.play().catch(()=>{});
+          } else {
+            vid.pause();
+          }
+        });
+      }, { threshold:[0.25,0.55,0.75] });
+      reelCards.forEach(c=> playObserver.observe(c));
+
+      // mute toggles
+      document.querySelectorAll('.mute-toggle').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const card = btn.closest('.reel-card');
+          const v = card.querySelector('video');
+          v.muted = !v.muted;
+          btn.textContent = v.muted ? 'Unmute' : 'Mute';
+        });
+      });
+    }
+  }catch(err){ console.error('Reel observer error', err); }
+
+  if(music){
+    const musicEl = document.getElementById('bg-music');
+    const toggle = document.getElementById('music-toggle');
+    musicEl.volume = 0.35;
+    let playing = false;
+    function toggleMusic(){
+      if(playing){
+        musicEl.pause();
+        toggle.classList.remove('playing');
+        toggle.querySelector('.label').textContent = 'Music';
+        playing = false;
+      } else {
+        musicEl.play().catch(()=>{});
+        toggle.classList.add('playing');
+        toggle.querySelector('.label').textContent = 'Playing';
+        playing = true;
+      }
+    }
+    toggle.addEventListener('click', toggleMusic);
+    toggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleMusic(); } });
+  }
+}
+init();
+</script>
+
+</body>
+</html>
