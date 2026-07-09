@@ -488,8 +488,10 @@ async function init(){
   if(music){
     const musicEl = document.getElementById('bg-music');
     const toggle = document.getElementById('music-toggle');
-    musicEl.volume = 0.35;
     let playing = false;
+    let audioContext = null;
+    let gainNode = null;
+    let sourceNode = null;
 
     function setPlayingState(nextPlaying){
       playing = nextPlaying;
@@ -497,37 +499,62 @@ async function init(){
       toggle.querySelector('.label').textContent = playing ? 'Playing' : 'Music';
     }
 
-    function startMusic(){
-      if(!musicEl.src) return;
-      musicEl.load();
-      const playPromise = musicEl.play();
-      if(playPromise && typeof playPromise.then === 'function'){
-        playPromise.then(()=> setPlayingState(true)).catch(()=>{
-          setPlayingState(false);
-          musicEl.currentTime = 0;
-          setTimeout(()=>{
-            const retryPromise = musicEl.play();
-            if(retryPromise && typeof retryPromise.then === 'function'){
-              retryPromise.then(()=> setPlayingState(true)).catch(()=> setPlayingState(false));
-            }
-          }, 120);
-        });
-      } else {
+    async function ensureAudioContext(){
+      if(!audioContext){
+        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+        if(!AudioContextCtor){ throw new Error('AudioContext not supported'); }
+        audioContext = new AudioContextCtor();
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = 0.35;
+        gainNode.connect(audioContext.destination);
+      }
+      if(audioContext.state === 'suspended'){
+        await audioContext.resume();
+      }
+      return audioContext;
+    }
+
+    async function startMusic(){
+      try{
+        const ctx = await ensureAudioContext();
+        if(sourceNode){
+          try{ sourceNode.stop(); }catch(err){}
+          sourceNode.disconnect();
+          sourceNode = null;
+        }
+        const response = await fetch(music.src);
+        if(!response.ok){ throw new Error('Audio fetch failed'); }
+        const arrayBuffer = await response.arrayBuffer();
+        const audioBuffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+        sourceNode = ctx.createBufferSource();
+        sourceNode.buffer = audioBuffer;
+        sourceNode.connect(gainNode);
+        sourceNode.onended = ()=>{ sourceNode = null; setPlayingState(false); };
+        sourceNode.start(0);
         setPlayingState(true);
-      }
-    }
-
-    function toggleMusic(){
-      if(playing){
-        musicEl.pause();
+      }catch(err){
+        console.error('Music playback error', err);
         setPlayingState(false);
-      } else {
-        startMusic();
       }
     }
 
-    toggle.addEventListener('click', ()=>{ toggleMusic(); });
-    toggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleMusic(); } });
+    function stopMusic(){
+      if(sourceNode){
+        try{ sourceNode.stop(); }catch(err){}
+        sourceNode.disconnect();
+        sourceNode = null;
+      }
+      setPlayingState(false);
+    }
+
+    toggle.addEventListener('click', async ()=>{
+      if(playing){
+        stopMusic();
+      } else {
+        await startMusic();
+      }
+    });
+    toggle.addEventListener('keydown', async (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); if(playing){ stopMusic(); } else { await startMusic(); } } });
   }
 }
 init();
