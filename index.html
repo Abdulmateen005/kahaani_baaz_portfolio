@@ -490,9 +490,9 @@ async function init(){
     const toggle = document.getElementById('music-toggle');
     let playing = false;
     let audioContext = null;
-    let gainNode = null;
-    let oscillatorNode = null;
-    let oscillatorGain = null;
+    let masterGain = null;
+    let ambientOsc = null;
+    let ambientGain = null;
 
     function setPlayingState(nextPlaying){
       playing = nextPlaying;
@@ -505,9 +505,9 @@ async function init(){
         const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
         if(!AudioContextCtor){ throw new Error('AudioContext not supported'); }
         audioContext = new AudioContextCtor();
-        gainNode = audioContext.createGain();
-        gainNode.gain.value = 0.2;
-        gainNode.connect(audioContext.destination);
+        masterGain = audioContext.createGain();
+        masterGain.gain.value = 0.08;
+        masterGain.connect(audioContext.destination);
       }
       if(audioContext.state === 'suspended'){
         await audioContext.resume();
@@ -515,15 +515,15 @@ async function init(){
       return audioContext;
     }
 
-    function stopTone(){
-      if(oscillatorNode){
-        try{ oscillatorNode.stop(); }catch(err){}
-        oscillatorNode.disconnect();
-        oscillatorNode = null;
+    function stopAmbient(){
+      if(ambientOsc){
+        try{ ambientOsc.stop(); }catch(err){}
+        ambientOsc.disconnect();
+        ambientOsc = null;
       }
-      if(oscillatorGain){
-        oscillatorGain.disconnect();
-        oscillatorGain = null;
+      if(ambientGain){
+        ambientGain.disconnect();
+        ambientGain = null;
       }
     }
 
@@ -537,34 +537,22 @@ async function init(){
             setPlayingState(true);
             return;
           }catch(err){
-            console.warn('Audio element playback failed, using fallback tone', err);
+            console.warn('music element blocked, using fallback tone', err);
           }
         }
 
-        stopTone();
-        oscillatorNode = ctx.createOscillator();
-        oscillatorGain = ctx.createGain();
-        oscillatorNode.type = 'sine';
-        oscillatorNode.frequency.setValueAtTime(220, ctx.currentTime);
-        oscillatorNode.frequency.linearRampToValueAtTime(330, ctx.currentTime + 1.2);
-        oscillatorGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        oscillatorGain.gain.linearRampToValueAtTime(0.035, ctx.currentTime + 0.08);
-        oscillatorGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 1.4);
-        oscillatorNode.connect(oscillatorGain);
-        oscillatorGain.connect(gainNode);
-        oscillatorNode.start();
-        setTimeout(()=>{
-          if(oscillatorNode){
-            oscillatorNode.stop();
-            oscillatorNode.disconnect();
-            oscillatorNode = null;
-          }
-          if(oscillatorGain){
-            oscillatorGain.disconnect();
-            oscillatorGain = null;
-          }
-          setPlayingState(false);
-        }, 1500);
+        stopAmbient();
+        ambientOsc = ctx.createOscillator();
+        ambientGain = ctx.createGain();
+        ambientOsc.type = 'triangle';
+        ambientOsc.frequency.setValueAtTime(196, ctx.currentTime);
+        ambientOsc.frequency.linearRampToValueAtTime(262, ctx.currentTime + 0.8);
+        ambientGain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        ambientGain.gain.linearRampToValueAtTime(0.045, ctx.currentTime + 0.1);
+        ambientGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
+        ambientOsc.connect(ambientGain);
+        ambientGain.connect(masterGain);
+        ambientOsc.start();
         setPlayingState(true);
       }catch(err){
         console.error('Music playback error', err);
@@ -576,7 +564,7 @@ async function init(){
       if(musicEl){
         try{ musicEl.pause(); }catch(err){}
       }
-      stopTone();
+      stopAmbient();
       setPlayingState(false);
     }
 
