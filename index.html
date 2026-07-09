@@ -497,30 +497,37 @@ async function init(){
       toggle.querySelector('.label').textContent = playing ? 'Playing' : 'Music';
     }
 
+    function startMusic(){
+      if(!musicEl.src) return;
+      musicEl.load();
+      const playPromise = musicEl.play();
+      if(playPromise && typeof playPromise.then === 'function'){
+        playPromise.then(()=> setPlayingState(true)).catch(()=>{
+          setPlayingState(false);
+          musicEl.currentTime = 0;
+          setTimeout(()=>{
+            const retryPromise = musicEl.play();
+            if(retryPromise && typeof retryPromise.then === 'function'){
+              retryPromise.then(()=> setPlayingState(true)).catch(()=> setPlayingState(false));
+            }
+          }, 120);
+        });
+      } else {
+        setPlayingState(true);
+      }
+    }
+
     function toggleMusic(){
       if(playing){
         musicEl.pause();
         setPlayingState(false);
       } else {
-        const playPromise = musicEl.play();
-        if(playPromise && typeof playPromise.then === 'function'){
-          playPromise.then(()=> setPlayingState(true)).catch(()=>{ setPlayingState(false); });
-        } else {
-          setPlayingState(true);
-        }
+        startMusic();
       }
     }
 
-    const handleInteraction = ()=>{
-      if(!playing && musicEl.paused){
-        toggleMusic();
-      }
-    };
-
-    toggle.addEventListener('click', handleInteraction);
-    toggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); handleInteraction(); } });
-    document.addEventListener('pointerdown', handleInteraction, { once: true });
-    document.addEventListener('keydown', handleInteraction, { once: true });
+    toggle.addEventListener('click', ()=>{ toggleMusic(); });
+    toggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleMusic(); } });
   }
 }
 init();
