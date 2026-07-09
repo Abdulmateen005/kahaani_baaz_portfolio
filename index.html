@@ -436,7 +436,7 @@ async function init(){
   </footer>
 
   ${music ? `
-  <audio id="bg-music" loop preload="none">
+  <audio id="bg-music" loop preload="auto">
     <source src="${music.src}" type="audio/mpeg">
   </audio>
   <div class="music-toggle mono" id="music-toggle" role="button" tabindex="0" aria-label="Play background music">
@@ -490,21 +490,37 @@ async function init(){
     const toggle = document.getElementById('music-toggle');
     musicEl.volume = 0.35;
     let playing = false;
+
+    function setPlayingState(nextPlaying){
+      playing = nextPlaying;
+      toggle.classList.toggle('playing', playing);
+      toggle.querySelector('.label').textContent = playing ? 'Playing' : 'Music';
+    }
+
     function toggleMusic(){
       if(playing){
         musicEl.pause();
-        toggle.classList.remove('playing');
-        toggle.querySelector('.label').textContent = 'Music';
-        playing = false;
+        setPlayingState(false);
       } else {
-        musicEl.play().catch(()=>{});
-        toggle.classList.add('playing');
-        toggle.querySelector('.label').textContent = 'Playing';
-        playing = true;
+        const playPromise = musicEl.play();
+        if(playPromise && typeof playPromise.then === 'function'){
+          playPromise.then(()=> setPlayingState(true)).catch(()=>{ setPlayingState(false); });
+        } else {
+          setPlayingState(true);
+        }
       }
     }
-    toggle.addEventListener('click', toggleMusic);
-    toggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); toggleMusic(); } });
+
+    const handleInteraction = ()=>{
+      if(!playing && musicEl.paused){
+        toggleMusic();
+      }
+    };
+
+    toggle.addEventListener('click', handleInteraction);
+    toggle.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); handleInteraction(); } });
+    document.addEventListener('pointerdown', handleInteraction, { once: true });
+    document.addEventListener('keydown', handleInteraction, { once: true });
   }
 }
 init();
