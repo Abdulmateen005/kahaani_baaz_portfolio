@@ -61,17 +61,28 @@
     display:flex; flex-direction:column; justify-content:center;
     padding:0 5vw;
     position:relative;
-    /* Background image (place your image at images/hero-bg.jpg) with subtle gradients on top for legibility */
+    overflow:hidden;
+    /* Background image: use a real uploaded image for the intro section. */
     background:
       radial-gradient(ellipse at 75% 15%, rgba(232,195,127,0.09), transparent 55%),
       radial-gradient(ellipse at 15% 85%, rgba(193,85,60,0.08), transparent 50%),
       linear-gradient(rgba(13,11,9,0.45), rgba(13,11,9,0.25)),
-      url("images/hero-bg.jpg") center/cover no-repeat;
+      url("images/1783618734699-whatsapp-image-2026-07-09-at-9.48.31-pm-1-.jpeg") center/cover no-repeat;
     background-size: cover;
     background-position: center;
   }
+  .hero::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:linear-gradient(180deg, rgba(13,11,9,0.18), rgba(13,11,9,0.72));
+    pointer-events:none;
+    z-index:1;
+  }
+  .hero > *{ position:relative; z-index:2; }
   .scanlines{
     position:absolute; inset:0; pointer-events:none; opacity:0.3;
+    z-index:3;
     background:repeating-linear-gradient(to bottom, transparent 0 3px, rgba(232,195,127,0.02) 3px 4px);
   }
   .hero-eyebrow{
