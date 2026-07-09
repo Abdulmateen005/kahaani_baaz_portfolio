@@ -237,36 +237,6 @@
   [data-reveal]{ opacity:0; transform:translateY(24px); transition:opacity .8s ease, transform .8s ease; }
   [data-reveal].in{ opacity:1; transform:translateY(0); }
 
-  .music-toggle{
-    position:fixed; right:22px; bottom:22px; z-index:60;
-    display:flex; align-items:center; gap:10px;
-    background:rgba(13,11,9,0.75); backdrop-filter:blur(10px);
-    border:1px solid var(--hairline); border-radius:999px;
-    padding:10px 16px 10px 12px; cursor:pointer;
-    transition:border-color .3s ease;
-  }
-  .music-toggle:hover{ border-color:var(--accent-gold); }
-  .music-toggle .icon{
-    width:30px; height:30px; border-radius:50%; border:1px solid var(--accent-gold);
-    display:flex; align-items:center; justify-content:center; flex-shrink:0;
-  }
-  .music-toggle svg{ width:13px; height:13px; fill:var(--accent-gold); }
-  .music-toggle .pause-icon{ display:none; }
-  .music-toggle.playing .play-icon{ display:none; }
-  .music-toggle.playing .pause-icon{ display:block; }
-  .music-toggle span.label{
-    font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.1em;
-    color:var(--text-muted); text-transform:uppercase; white-space:nowrap;
-  }
-  .music-toggle.playing span.label{ color:var(--accent-gold); }
-  .bars{ display:flex; align-items:center; gap:2px; height:12px; margin-left:2px; }
-  .bars span{ width:2px; background:var(--accent-gold); height:4px; border-radius:1px; opacity:0.4; }
-  .music-toggle.playing .bars span{ animation:eq 0.9s ease-in-out infinite; opacity:1; }
-  .bars span:nth-child(1){ animation-delay:0s; }
-  .bars span:nth-child(2){ animation-delay:0.2s; }
-  .bars span:nth-child(3){ animation-delay:0.4s; }
-  @keyframes eq{ 0%,100%{ height:4px; } 50%{ height:12px; } }
-
   .load-state{
     min-height:100vh; display:flex; align-items:center; justify-content:center;
     font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.1em;
@@ -456,19 +426,6 @@ async function init(){
     <span>© ${new Date().getFullYear()} ${escapeHTML(s.alias)} — ${escapeHTML(s.name)}</span>
     <span>${escapeHTML(s.location)}</span>
   </footer>
-
-  ${music ? `
-  <audio id="bg-music" loop preload="auto">
-    <source src="${music.src}" type="audio/mpeg">
-  </audio>
-  <div class="music-toggle mono" id="music-toggle" role="button" tabindex="0" aria-label="Play background music">
-    <div class="icon">
-      <svg class="play-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-      <svg class="pause-icon" viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
-    </div>
-    <span class="label">Music</span>
-    <div class="bars"><span></span><span></span><span></span></div>
-  </div>` : ''}
   `;
 
   const io = new IntersectionObserver((entries)=>{
@@ -507,98 +464,6 @@ async function init(){
     }
   }catch(err){ console.error('Reel observer error', err); }
 
-  if(music){
-    const musicEl = document.getElementById('bg-music');
-    const toggle = document.getElementById('music-toggle');
-    let playing = false;
-    let audioContext = null;
-    let masterGain = null;
-    let ambientOsc = null;
-    let ambientGain = null;
-
-    function setPlayingState(nextPlaying){
-      playing = nextPlaying;
-      toggle.classList.toggle('playing', playing);
-      toggle.querySelector('.label').textContent = playing ? 'Playing' : 'Music';
-    }
-
-    async function ensureAudioContext(){
-      if(!audioContext){
-        const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-        if(!AudioContextCtor){ throw new Error('AudioContext not supported'); }
-        audioContext = new AudioContextCtor();
-        masterGain = audioContext.createGain();
-        masterGain.gain.value = 0.08;
-        masterGain.connect(audioContext.destination);
-      }
-      if(audioContext.state === 'suspended'){
-        await audioContext.resume();
-      }
-      return audioContext;
-    }
-
-    function stopAmbient(){
-      if(ambientOsc){
-        try{ ambientOsc.stop(); }catch(err){}
-        ambientOsc.disconnect();
-        ambientOsc = null;
-      }
-      if(ambientGain){
-        ambientGain.disconnect();
-        ambientGain = null;
-      }
-    }
-
-    async function startMusic(){
-      try{
-        const ctx = await ensureAudioContext();
-        if(musicEl){
-          try{
-            musicEl.currentTime = 0;
-            await musicEl.play();
-            setPlayingState(true);
-            return;
-          }catch(err){
-            console.warn('music element blocked, using fallback tone', err);
-          }
-        }
-
-        stopAmbient();
-        ambientOsc = ctx.createOscillator();
-        ambientGain = ctx.createGain();
-        ambientOsc.type = 'triangle';
-        ambientOsc.frequency.setValueAtTime(196, ctx.currentTime);
-        ambientOsc.frequency.linearRampToValueAtTime(262, ctx.currentTime + 0.8);
-        ambientGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-        ambientGain.gain.linearRampToValueAtTime(0.045, ctx.currentTime + 0.1);
-        ambientGain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.9);
-        ambientOsc.connect(ambientGain);
-        ambientGain.connect(masterGain);
-        ambientOsc.start();
-        setPlayingState(true);
-      }catch(err){
-        console.error('Music playback error', err);
-        setPlayingState(false);
-      }
-    }
-
-    function stopMusic(){
-      if(musicEl){
-        try{ musicEl.pause(); }catch(err){}
-      }
-      stopAmbient();
-      setPlayingState(false);
-    }
-
-    toggle.addEventListener('click', async ()=>{
-      if(playing){
-        stopMusic();
-      } else {
-        await startMusic();
-      }
-    });
-    toggle.addEventListener('keydown', async (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); if(playing){ stopMusic(); } else { await startMusic(); } } });
-  }
 }
 init();
 </script>
