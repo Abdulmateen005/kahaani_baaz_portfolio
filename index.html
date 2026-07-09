@@ -204,6 +204,14 @@
   .reel-overlay{ position:absolute; left:12px; top:12px; z-index:6; display:flex; gap:8px; align-items:center; }
   .mute-toggle{ background:rgba(13,11,9,0.6); border:1px solid var(--hairline); color:var(--text-muted); padding:8px 10px; border-radius:6px; cursor:pointer; font-family:'IBM Plex Mono',monospace; font-size:12px; }
   .reel-caption{ position:absolute; left:12px; bottom:12px; color:var(--text-primary); font-family:'IBM Plex Mono',monospace; font-size:13px; text-shadow:0 2px 8px rgba(0,0,0,0.7); }
+  .reel-placeholder{
+    width:100%; max-width:640px; min-height:260px;
+    display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:40px 24px;
+    border:1px dashed var(--hairline); background:rgba(255,255,255,0.04);
+    color:var(--text-muted); font-size:14px; letter-spacing:0.06em;
+    border-radius:16px;
+  }
 
   .contact-wrap{
     display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:40px;
@@ -345,7 +353,7 @@ async function init(){
       <ul>
         <li><a href="#about">About</a></li>
         <li><a href="#frames">Frames</a></li>
-        ${reels.length ? '<li><a href="#reel">Reel</a></li>' : ''}
+        <li><a href="#reel">Reel</a></li>
         <li><a href="#contact">Contact</a></li>
       </ul>
     </nav>
@@ -407,7 +415,6 @@ async function init(){
     </div>
   </section>
 
-  ${reels.length ? `
   <section id="reel">
     <div class="section-head" data-reveal>
       <div>
@@ -418,7 +425,7 @@ async function init(){
     </div>
     <div class="reel-grid" data-reveal>
       <div class="reels-column">
-      ${reels.map(r => `
+      ${reels.length ? reels.map(r => `
         <div class="reel-card" data-reel-id="${escapeHTML(r.id || '')}">
           <video src="${r.src}" muted loop playsinline preload="metadata" webkit-playsinline></video>
           <div class="reel-overlay">
@@ -426,10 +433,14 @@ async function init(){
           </div>
           <div class="reel-caption mono">${escapeHTML(r.id || '')}</div>
         </div>
-      `).join('')}
+      `).join('') : `
+        <div class="reel-placeholder mono">
+          No reels are added yet. Upload reels in admin or add videos to data.json.
+        </div>
+      `}
       </div>
     </div>
-  </section>` : ''}
+  </section>
 
   <section id="contact">
     <div class="contact-wrap" data-reveal>
