@@ -112,7 +112,6 @@ function writeData(payload) {
   // Auto-commit in background (don't block the response)
   setImmediate(() => autoCommitToGit());
 }
-}
 
 function readRequestBody(req) {
   return new Promise((resolve, reject) => {
