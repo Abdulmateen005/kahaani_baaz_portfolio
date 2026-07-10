@@ -181,7 +181,7 @@
           </select>
         </div>
         <div class="checkbox-row" style="margin-bottom:16px;">
-          <input type="checkbox" id="frame-feature"><label for="frame-feature" style="margin:0;">Make this the large featured frame</label>
+          <input type="checkbox" id="frame-feature"><label for="frame-feature" style="margin:0;">Make this the featured image for this category</label>
         </div>
         <button class="btn primary" id="btn-add-frame">Add Frame</button>
       </div>
@@ -435,7 +435,12 @@ function handleFrameAction(act, idx){
     [siteData.frames[idx+1], siteData.frames[idx]] = [siteData.frames[idx], siteData.frames[idx+1]];
     changed = true;
   } else if(act === 'feature'){
-    siteData.frames.forEach((f,i)=> f.feature = (i === idx));
+    const category = siteData.frames[idx].category;
+    siteData.frames.forEach((f,i)=> {
+      if(f.category === category){
+        f.feature = (i === idx);
+      }
+    });
     changed = true;
   }
   if(changed){
@@ -562,7 +567,7 @@ document.getElementById('btn-add-frame').addEventListener('click', async ()=>{
     }
   }
 
-  if(feature){ siteData.frames.forEach(f=> f.feature = false); }
+  if(feature){ siteData.frames.forEach(f=> { if(f.category === category){ f.feature = false; }}); }
   siteData.frames.push({ id: 'frame-' + Date.now(), src: relSrc, alt, tag, category, feature });
   renderFrameList();
 
