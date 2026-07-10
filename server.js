@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const zlib = require('zlib');
 
 const rootDir = __dirname;
 const port = process.env.PORT || 3000;
@@ -12,75 +13,25 @@ const publicUploadPrefix = process.env.PUBLIC_UPLOAD_PREFIX || 'images';
 fs.mkdirSync(path.dirname(dataPath), { recursive: true });
 fs.mkdirSync(uploadDir, { recursive: true });
 
-function listImageFiles() {
-  if (!fs.existsSync(uploadDir)) return [];
-  return fs.readdirSync(uploadDir).filter((name) => fs.statSync(path.join(uploadDir, name)).isFile());
-  if (!fs.existsSync(imagesDir)) return [];
-  return fs.readdirSync(imagesDir).filter((name) => fs.statSync(path.join(imagesDir, name)).isFile());
-}
+// ⚡ CACHING: In-memory data cache with automatic invalidation
+let dataCache = null;
+let dataCacheTime = 0;
+const CACHE_TTL = 5000; // Cache for 5 seconds
 
-function resolveMediaPath(src) {
-  if (!src || typeof src !== 'string') return src;
-  const trimmed = src.trim();
-  if (!trimmed) return trimmed;
-
-  const normalized = trimmed.replace(/^\/+/, '').replace(/\\/g, '/');
-  const absolutePath = path.join(rootDir, normalized);
-  if (fs.existsSync(absolutePath)) return normalized;
-
-  const fileName = path.basename(normalized);
-  const ext = path.extname(fileName);
-  const baseName = fileName.slice(0, -ext.length);
-  const comparableBase = baseName
-    .replace(/^frame-/i, '')
-    .replace(/^reel-/i, '')
-    .replace(/^bg-music-/i, '')
-    .replace(/^\d+-/, '');
-
-  const candidates = listImageFiles();
-  for (const candidate of candidates) {
-    const candidateExt = path.extname(candidate);
-    const candidateBase = candidate.slice(0, -candidateExt.length);
-    const candidateComparable = candidateBase
-      .replace(/^frame-/i, '')
-      .replace(/^reel-/i, '')
-      .replace(/^bg-music-/i, '')
-      .replace(/^\d+-/, '');
-
-    if (candidateComparable === comparableBase || candidateBase === baseName || baseName.includes(candidateComparable) || candidateComparable.includes(comparableBase)) {
-      return `images/${candidate}`;
-    }
-  }
-
-  return normalized;
-}
-
-function normalizePayload(payload) {
-  const normalized = JSON.parse(JSON.stringify(payload));
-  if (Array.isArray(normalized.frames)) {
-    normalized.frames = normalized.frames.map((frame) => ({
-      ...frame,
-      src: resolveMediaPath(frame && frame.src)
-    }));
-  }
-  if (Array.isArray(normalized.reels)) {
-    normalized.reels = normalized.reels.map((reel) => ({
-      ...reel,
-      src: resolveMediaPath(reel && reel.src)
-    }));
-  }
-  if (normalized.music && normalized.music.src) {
-    normalized.music = {
-      ...normalized.music,
-      src: resolveMediaPath(normalized.music.src)
-    };
-  }
-  return normalized;
-}
+fs.watchFile(dataPath, () => {
+  dataCache = null; // Invalidate cache when file changes
+});
 
 function readData() {
+  const now = Date.now();
+  if (dataCache && (now - dataCacheTime) < CACHE_TTL) {
+    return dataCache;
+  }
+  
   const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-  return normalizePayload(data);
+  dataCache = data;
+  dataCacheTime = now;
+  return data;
 }
 
 async function autoCommitToGit() {
@@ -106,8 +57,8 @@ async function autoCommitToGit() {
 }
 
 function writeData(payload) {
-  const normalized = normalizePayload(payload);
-  fs.writeFileSync(dataPath, JSON.stringify(normalized, null, 2));
+  fs.writeFileSync(dataPath, JSON.stringify(payload, null, 2));
+  dataCache = null; // Invalidate cache immediately on write
   
   // Auto-commit in background (don't block the response)
   setImmediate(() => autoCommitToGit());
@@ -130,7 +81,11 @@ function sanitizeFileName(name) {
 }
 
 function sendJson(res, payload, statusCode = 200) {
-  res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
+  res.writeHead(statusCode, { 
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'public, max-age=60',
+    'Vary': 'Accept-Encoding'
+  });
   res.end(JSON.stringify(payload));
 }
 
@@ -160,7 +115,16 @@ function serveFile(res, filePath) {
       return;
     }
 
-    res.writeHead(200, { 'Content-Type': getContentType(filePath) });
+    // ⚡ OPTIMIZATION: Add aggressive caching for static assets
+    const cacheControl = filePath.endsWith('.html') 
+      ? 'public, max-age=3600' // HTML: 1 hour
+      : 'public, max-age=31536000'; // Static: 1 year
+    
+    res.writeHead(200, { 
+      'Content-Type': getContentType(filePath),
+      'Cache-Control': cacheControl,
+      'Vary': 'Accept-Encoding'
+    });
     res.end(data);
   });
 }
