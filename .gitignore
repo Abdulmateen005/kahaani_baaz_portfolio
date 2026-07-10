@@ -1,3 +1,6 @@
 node_modules/
 .env
 .DS_Store
+admin.html
+data-db.json
+data-original.json
