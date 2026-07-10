@@ -326,10 +326,10 @@ async function init(){
   const reels = data.reels && Array.isArray(data.reels) ? data.reels : (data.reel ? [data.reel] : []);
   const music = data.music;
 
-  const categories = ['portraits', 'streetstyle', 'randoms'];
+  const categories = ['portraits', 'street-style', 'randoms'];
   const categoryLabels = {
     portraits: 'Portraits',
-    streetstyle: 'Street Style',
+    'street-style': 'Street Style',
     randoms: 'Randoms'
   };
   const categoryLinks = {
