@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Kahaani Baaz — Admin (Local Only)</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://upload-widget.cloudinary.com/latest/global/cloudinary-js-base.min.js"></script>
 <style>
   :root{
     --bg-void:#0d0b09; --bg-panel:#161210; --bg-panel-2:#1b1613;
@@ -165,7 +166,7 @@
 
     <section class="panel">
       <h2 class="display">Frames (Photos)</h2>
-      <p class="hint">Add a new photo, or manage the ones already on the site.</p>
+      <p class="hint">Add a new photo. All uploads are automatically backed up to Cloudinary ☁️</p>
 
       <div class="card">
         <div class="drop" id="drop-frame">Click to choose an image, or drag one here</div>
@@ -191,7 +192,7 @@
 
     <section class="panel">
       <h2 class="display">Reel (Video)</h2>
-      <p class="hint">One featured short video for the "In Motion" section.</p>
+      <p class="hint">Upload a short video. Videos are automatically backed up to Cloudinary ☁️</p>
       <div class="card">
         <div class="drop" id="drop-reel">Click to choose a video, or drag one here</div>
         <input type="file" id="reel-file" accept="video/*">
@@ -205,7 +206,7 @@
 
     <section class="panel">
       <h2 class="display">Background Music</h2>
-      <p class="hint">One looping track, muted by default with a play toggle on the site.</p>
+      <p class="hint">Upload background music. Audio is automatically backed up to Cloudinary ☁️</p>
       <div class="card">
         <div class="drop" id="drop-music">Click to choose an MP3, or drag one here</div>
         <input type="file" id="music-file" accept="audio/*">
@@ -221,6 +222,13 @@
 /* ====== change this before sharing this file with anyone ====== */
 const ADMIN_PASSWORD = "kahaanibaaz2026";
 /* ================================================================ */
+
+/* ====== Cloudinary Configuration ====== */
+const CLOUDINARY_CONFIG = {
+  cloudName: 'zfxzppuw',
+  uploadPreset: 'Kahaani_baaz_uploads'
+};
+/* ====================================== */
 
 let dirHandle = null;          // File System Access API handle (Chrome/Edge)
 let siteData = null;           // in-memory data.json
@@ -453,6 +461,27 @@ function escapeHTML(str){
   return String(str||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
 
+async function uploadToCloudinary(file, folder = 'portfolio') {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_CONFIG.uploadPreset);
+  formData.append('folder', `kahaani_baaz/${folder}`);
+  formData.append('resource_type', 'auto');
+
+  try {
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CONFIG.cloudName}/auto/upload`, {
+      method: 'POST',
+      body: formData
+    });
+    if (!res.ok) throw new Error('Cloudinary upload failed');
+    const data = await res.json();
+    return data.secure_url; // Use secure_url (https)
+  } catch (err) {
+    console.error('Cloudinary upload error:', err);
+    throw new Error('Could not upload to Cloudinary: ' + err.message);
+  }
+}
+
 async function uploadToServer(file, label){
   const res = await fetch(`/api/upload?name=${encodeURIComponent(file.name)}`, {
     method: 'POST',
@@ -547,24 +576,14 @@ document.getElementById('btn-add-frame').addEventListener('click', async ()=>{
   const alt = document.getElementById('frame-alt').value.trim() || tag;
   const category = document.getElementById('frame-category').value;
   const feature = document.getElementById('frame-feature').checked;
-  const safeName = 'frame-' + Date.now() + '-' + pendingFrameFile.name.toLowerCase().replace(/[^a-z0-9.]+/g,'-');
-  const relSrc = 'images/' + safeName;
+  let relSrc = '';
 
   try{
-    relSrc = await uploadToServer(pendingFrameFile, 'frame');
+    relSrc = await uploadToCloudinary(pendingFrameFile, 'frames');
+    toast('Uploading to Cloudinary...');
   }catch(err){
-    if(dirHandle){
-      try{
-        const imagesDir = await dirHandle.getDirectoryHandle('images', { create:true });
-        const fh = await imagesDir.getFileHandle(safeName, { create:true });
-        const writable = await fh.createWritable();
-        await writable.write(pendingFrameFile);
-        await writable.close();
-      }catch(localErr){ toast('Could not write image file: ' + localErr.message); return; }
-    } else {
-      downloadBlob(pendingFrameFile, safeName);
-      toast(`Downloaded ${safeName} — move it into your images/ folder.`);
-    }
+    toast('Cloudinary upload failed: ' + err.message);
+    return;
   }
 
   if(feature){ siteData.frames.forEach(f=> { if(f.category === category){ f.feature = false; }}); }
@@ -579,30 +598,20 @@ document.getElementById('btn-add-frame').addEventListener('click', async ()=>{
   const drop = document.getElementById('drop-frame');
   drop.textContent = 'Click to choose an image, or drag one here';
   drop.classList.remove('has-file');
-  await persistSiteData('Frame uploaded and saved');
+  await persistSiteData('Frame uploaded to Cloudinary and saved');
 });
 
 document.getElementById('btn-add-reel').addEventListener('click', async ()=>{
   if(!siteData){ toast('Connect a project folder first.'); return; }
   if(!pendingReelFile){ toast('Choose a video first.'); return; }
-  const safeName = 'reel-' + Date.now() + '-' + pendingReelFile.name.toLowerCase().replace(/[^a-z0-9.]+/g,'-');
-  const relSrc = 'images/' + safeName;
+  let relSrc = '';
 
   try{
-    relSrc = await uploadToServer(pendingReelFile, 'reel');
+    relSrc = await uploadToCloudinary(pendingReelFile, 'reels');
+    toast('Uploading video to Cloudinary...');
   }catch(err){
-    if(dirHandle){
-      try{
-        const imagesDir = await dirHandle.getDirectoryHandle('images', { create:true });
-        const fh = await imagesDir.getFileHandle(safeName, { create:true });
-        const writable = await fh.createWritable();
-        await writable.write(pendingReelFile);
-        await writable.close();
-      }catch(localErr){ toast('Could not write video file: ' + localErr.message); return; }
-    } else {
-      downloadBlob(pendingReelFile, safeName);
-      toast(`Downloaded ${safeName} — move it into your images/ folder.`);
-    }
+    toast('Cloudinary upload failed: ' + err.message);
+    return;
   }
 
   siteData.reels = siteData.reels || [];
@@ -613,7 +622,7 @@ document.getElementById('btn-add-reel').addEventListener('click', async ()=>{
   const drop = document.getElementById('drop-reel');
   drop.textContent = 'Click to choose a video, or drag one here';
   drop.classList.remove('has-file');
-  await persistSiteData('Reel uploaded and saved');
+  await persistSiteData('Reel uploaded to Cloudinary and saved');
 });
 
 function downloadBlob(fileOrBlob, name){
@@ -639,49 +648,27 @@ document.getElementById('btn-save').addEventListener('click', async ()=>{
 
   // handle pending reel
   if(pendingReelFile){
-    const safeName = 'reel-' + Date.now() + '-' + pendingReelFile.name.toLowerCase().replace(/[^a-z0-9.]+/g,'-');
-    let relSrc = 'images/' + safeName;
     try{
-      relSrc = await uploadToServer(pendingReelFile, 'reel');
+      const reelUrl = await uploadToCloudinary(pendingReelFile, 'reels');
+      siteData.reels = siteData.reels || [];
+      siteData.reels.push({ id: 'reel-' + Date.now(), src: reelUrl });
+      pendingReelFile = null;
+      toast('Reel uploaded to Cloudinary');
     }catch(err){
-      if(dirHandle){
-        try{
-          const imagesDir = await dirHandle.getDirectoryHandle('images', { create:true });
-          const fh = await imagesDir.getFileHandle(safeName, { create:true });
-          const writable = await fh.createWritable();
-          await writable.write(pendingReelFile);
-          await writable.close();
-        }catch(localErr){ toast('Could not write video: ' + localErr.message); }
-      } else {
-        downloadBlob(pendingReelFile, safeName);
-      }
+      toast('Could not upload reel: ' + err.message);
     }
-    siteData.reels = siteData.reels || [];
-    siteData.reels.push({ id: 'reel-' + Date.now(), src: relSrc });
-    pendingReelFile = null;
   }
 
   // handle pending music
   if(pendingMusicFile){
-    const safeName = 'bg-music-' + Date.now() + '-' + pendingMusicFile.name.toLowerCase().replace(/[^a-z0-9.]+/g,'-');
-    let relSrc = 'images/' + safeName;
     try{
-      relSrc = await uploadToServer(pendingMusicFile, 'music');
+      const musicUrl = await uploadToCloudinary(pendingMusicFile, 'music');
+      siteData.music = { src: musicUrl, label: pendingMusicFile.name.replace(/\.[^.]+$/,'') };
+      pendingMusicFile = null;
+      toast('Music uploaded to Cloudinary');
     }catch(err){
-      if(dirHandle){
-        try{
-          const imagesDir = await dirHandle.getDirectoryHandle('images', { create:true });
-          const fh = await imagesDir.getFileHandle(safeName, { create:true });
-          const writable = await fh.createWritable();
-          await writable.write(pendingMusicFile);
-          await writable.close();
-        }catch(localErr){ toast('Could not write audio: ' + localErr.message); }
-      } else {
-        downloadBlob(pendingMusicFile, safeName);
-      }
+      toast('Could not upload music: ' + err.message);
     }
-    siteData.music = { src: relSrc, label: pendingMusicFile.name.replace(/\.[^.]+$/,'') };
-    pendingMusicFile = null;
   }
 
   await persistSiteData('Saved changes to the live server.');
