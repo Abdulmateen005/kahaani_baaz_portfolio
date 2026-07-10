@@ -335,7 +335,7 @@ function renderFrameList(){
     el.innerHTML = `
       <img src="${f._previewUrl || (dirHandle ? '' : '')}" onerror="this.style.display='none'">
       <div class="meta">
-        <div class="tag mono">${escapeHTML(f.tag)}${f.feature ? '<span class="feature-badge">FEATURED</span>' : ''}</div>
+        <div class="tag mono">${escapeHTML(f.tag)}${f.feature ? `<span class="feature-badge">Featured in ${escapeHTML(getCategoryLabel(f.category))}</span>` : ''}</div>
         <div class="src mono">${escapeHTML(f.src)}</div>
         <div class="src mono">Category: ${escapeHTML(getCategoryLabel(f.category))}</div>
       </div>
