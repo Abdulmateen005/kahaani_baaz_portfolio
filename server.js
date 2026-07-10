@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { execSync } = require('child_process');
 
 const rootDir = __dirname;
 const port = process.env.PORT || 3000;
@@ -82,9 +83,35 @@ function readData() {
   return normalizePayload(data);
 }
 
+async function autoCommitToGit() {
+  try {
+    // Only commit if in a git repo
+    execSync('git rev-parse --git-dir', { cwd: rootDir, stdio: 'pipe' });
+    
+    const timestamp = new Date().toISOString();
+    execSync('git add data.json', { cwd: rootDir });
+    execSync(`git commit -m "Auto-backup: portfolio data updated ${timestamp}"`, { cwd: rootDir });
+    
+    // Try to push, but don't fail if push fails (may not have git credentials)
+    try {
+      execSync('git push origin main', { cwd: rootDir, timeout: 10000 });
+      console.log('✅ Auto-backup: changes pushed to GitHub');
+    } catch (pushErr) {
+      console.log('ℹ️  Auto-backup: changes committed locally (push skipped)');
+    }
+  } catch (err) {
+    // Silently ignore if not in a git repo or git is not available
+    // This is normal on hosting platforms without git
+  }
+}
+
 function writeData(payload) {
   const normalized = normalizePayload(payload);
   fs.writeFileSync(dataPath, JSON.stringify(normalized, null, 2));
+  
+  // Auto-commit in background (don't block the response)
+  setImmediate(() => autoCommitToGit());
+}
 }
 
 function readRequestBody(req) {
@@ -213,4 +240,20 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, () => {
   console.log(`Portfolio server running at http://localhost:${port}`);
+  
+  // Initialize git config for auto-backups
+  try {
+    execSync('git rev-parse --git-dir', { cwd: rootDir, stdio: 'pipe' });
+    
+    // Set git config for commits (Railway environment)
+    try {
+      execSync('git config user.email "kahaani-baaz@backup.local"', { cwd: rootDir });
+      execSync('git config user.name "Kahaani Baaz Auto-Backup"', { cwd: rootDir });
+      console.log('✅ Git auto-backup initialized');
+    } catch (e) {
+      // Ignore config errors
+    }
+  } catch (e) {
+    console.log('ℹ️  Not in a git repository - auto-backup disabled');
+  }
 });
