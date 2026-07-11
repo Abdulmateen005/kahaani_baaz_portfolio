@@ -109,8 +109,6 @@
     const musicSrc = 'images/u_98673jp944-islamabad-sunrise-310993.mp3';
     const musicStateKey = 'kahaani-baaz-music-state';
     if(button && audio){
-      let resumeAttempted = false;
-
       function updateButtonState(isPlaying){
         button.classList.toggle('is-playing', isPlaying);
         button.setAttribute('aria-pressed', String(isPlaying));
@@ -130,22 +128,6 @@
         } catch (error) { return null; }
       }
 
-      function resumePlayback(){
-        if(resumeAttempted) return;
-        resumeAttempted = true;
-        const state = readMusicState();
-        if(state && state.src === musicSrc && state.isPlaying){
-          audio.currentTime = state.currentTime || 0;
-          audio.volume = 0.7;
-          window.setTimeout(()=>{
-            audio.play().catch(()=>{});
-          }, 120);
-          updateButtonState(true);
-        } else {
-          updateButtonState(false);
-        }
-      }
-
       audio.src = musicSrc;
       audio.preload = 'auto';
       audio.volume = 0.7;
@@ -154,7 +136,6 @@
       if(savedState && savedState.src === musicSrc && savedState.isPlaying){
         audio.currentTime = savedState.currentTime || 0;
         updateButtonState(true);
-        setTimeout(resumePlayback, 180);
       } else {
         updateButtonState(false);
       }
@@ -189,9 +170,15 @@
         }
       });
       window.addEventListener('beforeunload', ()=>{
-        saveMusicState(!audio.paused, audio.currentTime);
+        saveMusicState(false, audio.currentTime);
+        audio.pause();
       });
-      audio.addEventListener('canplay', resumePlayback);
+      document.addEventListener('visibilitychange', ()=>{
+        if(document.hidden){
+          audio.pause();
+          saveMusicState(false, audio.currentTime);
+        }
+      });
     }
 
     loadCategoryPage();

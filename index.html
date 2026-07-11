@@ -558,8 +558,6 @@ async function init(){
     const musicStateKey = 'kahaani-baaz-music-state';
     if(!button || !audio) return;
 
-    let resumeAttempted = false;
-
     function updateButtonState(isPlaying){
       button.classList.toggle('is-playing', isPlaying);
       button.setAttribute('aria-pressed', String(isPlaying));
@@ -579,22 +577,6 @@ async function init(){
       } catch(err){ return null; }
     }
 
-    function resumePlayback(){
-      if(resumeAttempted) return;
-      resumeAttempted = true;
-      const state = readMusicState();
-      if(state && state.src === src && state.isPlaying){
-        audio.currentTime = state.currentTime || 0;
-        audio.volume = 0.7;
-        window.setTimeout(()=>{
-          audio.play().catch(()=>{});
-        }, 120);
-        updateButtonState(true);
-      } else {
-        updateButtonState(false);
-      }
-    }
-
     audio.src = src;
     audio.preload = 'auto';
     audio.volume = 0.7;
@@ -603,7 +585,6 @@ async function init(){
     if(savedState && savedState.src === src && savedState.isPlaying){
       audio.currentTime = savedState.currentTime || 0;
       updateButtonState(true);
-      setTimeout(resumePlayback, 180);
     } else {
       updateButtonState(false);
     }
@@ -638,9 +619,15 @@ async function init(){
       }
     });
     window.addEventListener('beforeunload', ()=>{
-      saveMusicState(!audio.paused, audio.currentTime);
+      saveMusicState(false, audio.currentTime);
+      audio.pause();
     });
-    audio.addEventListener('canplay', resumePlayback);
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.hidden){
+        audio.pause();
+        saveMusicState(false, audio.currentTime);
+      }
+    });
   }
 
   initMusicControl(resolvedMusicSrc);
