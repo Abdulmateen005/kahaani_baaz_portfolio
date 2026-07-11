@@ -84,6 +84,14 @@
   .checkbox-row{ display:flex; align-items:center; gap:8px; font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-muted); }
 
   .frame-list{ display:flex; flex-direction:column; gap:12px; }
+  .section-list{ display:flex; flex-direction:column; gap:12px; }
+  .section-item{
+    display:flex; justify-content:space-between; align-items:center; gap:16px; background:var(--bg-panel);
+    border:1px solid var(--hairline); border-radius:6px; padding:12px 14px; flex-wrap:wrap;
+  }
+  .section-item .meta{ flex:1; min-width:220px; }
+  .section-item .meta .tag{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-primary); }
+  .section-item .meta .src{ font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--text-muted); margin-top:3px; }
   .frame-item{
     display:flex; gap:16px; align-items:center; background:var(--bg-panel); border:1px solid var(--hairline);
     border-radius:6px; padding:12px; flex-wrap:wrap;
@@ -165,6 +173,20 @@
     </section>
 
     <section class="panel">
+      <h2 class="display">Sections</h2>
+      <p class="hint">Create new gallery pages such as portraits, street style, randoms, or anything you want to add later.</p>
+      <div class="card">
+        <div class="row2">
+          <div class="field"><label>Section Label</label><input type="text" id="section-label" placeholder="e.g. Travel Stories"></div>
+          <div class="field"><label>Section Slug</label><input type="text" id="section-slug" placeholder="e.g. travel-stories"></div>
+        </div>
+        <div class="field"><label>Intro / Short Description</label><textarea id="section-intro" style="min-height:90px;"></textarea></div>
+        <button class="btn primary" id="btn-add-section">Add Section</button>
+      </div>
+      <div class="section-list" id="section-list"></div>
+    </section>
+
+    <section class="panel">
       <h2 class="display">Frames (Photos)</h2>
       <p class="hint">Add a new photo. All uploads are automatically backed up to Cloudinary ☁️</p>
 
@@ -174,12 +196,8 @@
         <div class="field"><label>Caption / Tag (e.g. FRAME_07 — TITLE)</label><input type="text" id="frame-tag"></div>
         <div class="field"><label>Alt Text (for accessibility)</label><input type="text" id="frame-alt"></div>
         <div class="field">
-          <label>Category</label>
-          <select id="frame-category" style="width:100%; background:var(--bg-panel-2); border:1px solid var(--hairline); color:var(--text-primary); padding:10px 12px; font-size:14px; border-radius:4px;">
-            <option value="portraits">Portraits</option>
-            <option value="street-style">Street Style</option>
-            <option value="randoms">Randoms</option>
-          </select>
+          <label>Section</label>
+          <select id="frame-category" style="width:100%; background:var(--bg-panel-2); border:1px solid var(--hairline); color:var(--text-primary); padding:10px 12px; font-size:14px; border-radius:4px;"></select>
         </div>
         <div class="checkbox-row" style="margin-bottom:16px;">
           <input type="checkbox" id="frame-feature"><label for="frame-feature" style="margin:0;">Make this the featured image for this category</label>
@@ -236,6 +254,56 @@ let pendingFrameFile = null;
 let pendingReelFile = null;
 let pendingMusicFile = null;
 const fsAccessSupported = 'showDirectoryPicker' in window;
+
+function slugify(value){
+  return String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'') || 'section';
+}
+
+function getSectionLabelFromSlug(slug){
+  const normalized = String(slug || '').toLowerCase();
+  if(normalized === 'street-style') return 'Street Style';
+  if(normalized === 'randoms') return 'Randoms';
+  if(normalized === 'portraits') return 'Portraits';
+  return normalized.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+}
+
+function ensureSections(){
+  if(!siteData) return [];
+  if(!Array.isArray(siteData.sections) || siteData.sections.length === 0){
+    const inferred = Array.from(new Set((siteData.frames || []).map(f => (f.category || '').trim()).filter(Boolean)));
+    const defaults = [
+      { slug: 'portraits', label: 'Portraits', intro: 'A closer look at faces, gestures and quiet stories.', pagePath: 'gallery.html?section=portraits' },
+      { slug: 'street-style', label: 'Street Style', intro: 'City textures, movement and everyday scenes.', pagePath: 'gallery.html?section=street-style' },
+      { slug: 'randoms', label: 'Randoms', intro: 'Small observations and unexpected details.', pagePath: 'gallery.html?section=randoms' }
+    ];
+    siteData.sections = [];
+    defaults.forEach(item => siteData.sections.push(item));
+    inferred.forEach(slug => {
+      const normalized = slugify(slug);
+      if(!siteData.sections.some(section => section.slug === normalized)){
+        siteData.sections.push({ slug: normalized, label: getSectionLabelFromSlug(normalized), intro: '', pagePath: `gallery.html?section=${encodeURIComponent(normalized)}` });
+      }
+    });
+  } else {
+    siteData.sections = siteData.sections
+      .filter(Boolean)
+      .map(section => ({
+        slug: slugify(section.slug || section.id || section.title || section.label),
+        label: section.label || section.title || section.name || getSectionLabelFromSlug(section.slug || section.id || section.title || section.label),
+        intro: section.intro || '',
+        pagePath: section.pagePath || `gallery.html?section=${encodeURIComponent(slugify(section.slug || section.id || section.title || section.label))}`
+      }));
+  }
+  return siteData.sections;
+}
+
+function populateFrameCategorySelect(){
+  const select = document.getElementById('frame-category');
+  if(!select) return;
+  const sections = ensureSections();
+  select.innerHTML = sections.map(section => `<option value="${escapeHTML(section.slug)}">${escapeHTML(section.label || getSectionLabelFromSlug(section.slug))}</option>`).join('');
+  if(!select.value && sections.length){ select.value = sections[0].slug; }
+}
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -312,6 +380,9 @@ function setStatus(connected, text){
 
 /* ---------- populate form from siteData ---------- */
 function populateForm(){
+  ensureSections();
+  populateFrameCategorySelect();
+  renderSectionList();
   const s = siteData.site;
   document.getElementById('f-name').value = s.name || '';
   document.getElementById('f-alias').value = s.alias || '';
@@ -329,9 +400,30 @@ function populateForm(){
 }
 
 function getCategoryLabel(category){
-  if(category === 'street-style') return 'Street Style';
-  if(category === 'randoms') return 'Randoms';
-  return 'Portraits';
+  return getSectionLabelFromSlug(category);
+}
+
+function renderSectionList(){
+  const list = document.getElementById('section-list');
+  if(!list) return;
+  const sections = ensureSections();
+  list.innerHTML = '';
+  sections.forEach((section, idx) => {
+    const el = document.createElement('div');
+    el.className = 'section-item';
+    el.innerHTML = `
+      <div class="meta">
+        <div class="tag mono">${escapeHTML(section.label || getSectionLabelFromSlug(section.slug))}</div>
+        <div class="src mono">/${escapeHTML(section.slug)} • ${escapeHTML(section.pagePath || '')}</div>
+        ${section.intro ? `<div class="src mono">${escapeHTML(section.intro)}</div>` : ''}
+      </div>
+      <div class="actions">
+        <button class="btn danger" data-act="delete" data-idx="${idx}">Delete</button>
+      </div>
+    `;
+    list.appendChild(el);
+  });
+  list.querySelectorAll('button').forEach(btn => btn.addEventListener('click', ()=> handleSectionAction(btn.dataset.act, parseInt(btn.dataset.idx))));
 }
 
 function renderFrameList(){
@@ -429,6 +521,18 @@ async function resolveThumb(relPath){
   }catch(err){ return null; }
 }
 
+function handleSectionAction(act, idx){
+  if(act === 'delete'){
+    if(confirm('Remove this section from the admin and public site?')){
+      ensureSections();
+      siteData.sections.splice(idx, 1);
+      renderSectionList();
+      populateFrameCategorySelect();
+      void persistSiteData('Section removed');
+    }
+  }
+}
+
 function handleFrameAction(act, idx){
   let changed = false;
   if(act === 'delete'){
@@ -513,6 +617,7 @@ function loadFromServer(){
 
 async function persistSiteData(message = 'Saved changes'){
   if(!siteData) return;
+  ensureSections();
   const clean = JSON.parse(JSON.stringify(siteData, (k,v)=> k.startsWith('_') ? undefined : v));
   try{
     await saveToServer(clean);
@@ -568,6 +673,30 @@ wireDrop('drop-music','music-file',(file, drop)=>{
   drop.classList.add('has-file');
 });
 
+/* ---------- add section ---------- */
+document.getElementById('btn-add-section').addEventListener('click', async ()=>{
+  if(!siteData){ toast('Connect a project folder first.'); return; }
+  const label = document.getElementById('section-label').value.trim();
+  const rawSlug = document.getElementById('section-slug').value.trim();
+  const intro = document.getElementById('section-intro').value.trim();
+  if(!label){ toast('Add a section label first.'); return; }
+  const slug = slugify(rawSlug || label);
+  const existing = ensureSections().some(section => section.slug === slug);
+  if(existing){ toast('That section already exists.'); return; }
+  siteData.sections.push({
+    slug,
+    label,
+    intro,
+    pagePath: `gallery.html?section=${encodeURIComponent(slug)}`
+  });
+  document.getElementById('section-label').value = '';
+  document.getElementById('section-slug').value = '';
+  document.getElementById('section-intro').value = '';
+  populateFrameCategorySelect();
+  renderSectionList();
+  await persistSiteData('Section added');
+});
+
 /* ---------- add frame ---------- */
 document.getElementById('btn-add-frame').addEventListener('click', async ()=>{
   if(!siteData){ toast('Connect a project folder first.'); return; }
@@ -592,7 +721,8 @@ document.getElementById('btn-add-frame').addEventListener('click', async ()=>{
 
   document.getElementById('frame-tag').value = '';
   document.getElementById('frame-alt').value = '';
-  document.getElementById('frame-category').value = 'portraits';
+  populateFrameCategorySelect();
+  if(document.getElementById('frame-category').options.length){ document.getElementById('frame-category').value = document.getElementById('frame-category').options[0].value; }
   document.getElementById('frame-feature').checked = false;
   pendingFrameFile = null;
   const drop = document.getElementById('drop-frame');

@@ -368,6 +368,11 @@ const fallbackData = {
     { id: 'frame-03', src: 'images/1783618968493-whatsapp-image-2026-07-09-at-9.48.29-pm.jpeg', alt: 'Uploaded portrait image', tag: 'FRAME_03 — PORTRAIT', category: 'portraits', feature: false },
     { id: 'frame-04', src: 'images/1783619335887-whatsapp-image-2026-07-09-at-9.48.30-pm-1-.jpeg', alt: 'Uploaded portrait image', tag: 'FRAME_04 — PORTRAIT', category: 'portraits', feature: false }
   ],
+  sections: [
+    { slug: 'portraits', label: 'Portraits', intro: 'A closer look at faces, gestures and quiet stories.', pagePath: 'gallery.html?section=portraits' },
+    { slug: 'street-style', label: 'Street Style', intro: 'City textures, movement and everyday scenes.', pagePath: 'gallery.html?section=street-style' },
+    { slug: 'randoms', label: 'Randoms', intro: 'Small observations and unexpected details.', pagePath: 'gallery.html?section=randoms' }
+  ],
   music: { src: '', label: 'Music' },
   reels: [
     { src: 'images/reel-1783602001093-whatsapp-video-2026-07-09-at-4.22.55-pm.mp4' },
@@ -391,21 +396,25 @@ async function init(){
   const music = data.music;
   const musicSrc = (music && music.src) ? music.src : '';
 
-  const categories = ['portraits', 'street-style', 'randoms'];
-  const categoryLabels = {
-    portraits: 'Portraits',
-    'street-style': 'Street Style',
-    randoms: 'Randoms'
-  };
-  const categoryLinks = {
-    portraits: 'portraits.html',
-    'street-style': 'street-style.html',
-    randoms: 'randoms.html'
-  };
+  const sections = Array.isArray(data.sections) && data.sections.length
+    ? data.sections
+    : fallbackData.sections || [];
 
-  function categoryCardHTML(category, f){
-    const label = categoryLabels[category] || category;
-    const link = categoryLinks[category] || '#';
+  function slugify(value){
+    return String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
+  }
+
+  function sectionLabel(section){
+    return section.label || section.title || section.name || (section.slug ? section.slug.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') : 'Section');
+  }
+
+  function sectionLink(section){
+    return section.pagePath || `gallery.html?section=${encodeURIComponent(slugify(section.slug || section.label || 'section'))}`;
+  }
+
+  function categoryCardHTML(section, f){
+    const label = sectionLabel(section);
+    const link = sectionLink(section);
 
     if(!f){
       return `
@@ -434,9 +443,10 @@ async function init(){
     return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
 
-  const framesMarkup = categories.map(category => {
+  const framesMarkup = sections.map(section => {
+    const category = slugify(section.slug || section.label || 'section');
     const categoryFeatured = frames.find(f => f.category === category && f.feature) || frames.find(f => f.category === category);
-    return categoryCardHTML(category, categoryFeatured);
+    return categoryCardHTML(section, categoryFeatured);
   }).join('');
 
   document.getElementById('app').innerHTML = `
@@ -499,9 +509,7 @@ async function init(){
       <p>${frames.length} frame${frames.length === 1 ? '' : 's'} — updated as new work goes up.</p>
     </div>
     <div class="frame-subpages" data-reveal>
-      <a class="frame-subpage-link" href="portraits.html">Portraits</a>
-      <a class="frame-subpage-link" href="street-style.html">Street Style</a>
-      <a class="frame-subpage-link" href="randoms.html">Randoms</a>
+      ${(sections || []).map(section => `<a class="frame-subpage-link" href="${escapeHTML(sectionLink(section))}">${escapeHTML(sectionLabel(section))}</a>`).join('')}
     </div>
     <div class="frame-category-grid" data-reveal>
       ${framesMarkup}

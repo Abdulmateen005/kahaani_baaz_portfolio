@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gallery | Kahaani Baaz</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg-void:#0d0b09;
+      --bg-panel:#161210;
+      --line-cyan:#e8c37f;
+      --accent-gold:#d9a552;
+      --text-primary:#f2ede4;
+      --text-muted:#8a8074;
+      --hairline: rgba(232,195,127,0.16);
+    }
+    *{box-sizing:border-box; margin:0; padding:0;}
+    body{background:var(--bg-void); color:var(--text-primary); font-family:'Inter', sans-serif; line-height:1.6; overflow-x:hidden;}
+    a{color:inherit; text-decoration:none;}
+    .page{max-width:1200px; margin:0 auto; padding:48px 24px 80px;}
+    header{display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:36px; border-bottom:1px solid var(--hairline); padding-bottom:20px;}
+    .brand{font-family:'IBM Plex Mono', monospace; font-size:12px; letter-spacing:0.16em; text-transform:uppercase;}
+    .nav{display:flex; gap:12px; flex-wrap:wrap;}
+    .nav a{font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-muted);} 
+    .nav a:hover{color:var(--accent-gold);} 
+    h1{font-family:'Space Grotesk', sans-serif; font-size:clamp(28px, 4vw, 40px); margin-bottom:12px;}
+    .intro{color:var(--text-muted); max-width:700px; margin-bottom:28px;}
+    .gallery{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:20px;}
+    .card{background:var(--bg-panel); border:1px solid var(--hairline); overflow:hidden; position:relative;}
+    .card img{width:100%; height:100%; min-height:320px; object-fit:cover; display:block;}
+    .card .caption{position:absolute; left:12px; bottom:12px; right:12px; padding:10px; background:rgba(13,11,9,0.7); font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-primary);} 
+    .music-toggle{ position:fixed; right:20px; bottom:20px; z-index:80; display:inline-flex; align-items:center; gap:8px; border:1px solid var(--hairline); background:rgba(13,11,9,0.78); color:var(--text-primary); padding:10px 14px; border-radius:999px; cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; backdrop-filter:blur(8px); }
+    .music-toggle.is-playing{ border-color:var(--accent-gold); color:var(--accent-gold); }
+    .music-toggle svg{ width:14px; height:14px; }
+    @media (max-width: 768px){ .page{ padding:32px 18px 72px; } header{ flex-direction:column; align-items:flex-start; } .nav{ width:100%; } }
+    @media (max-width: 560px){ .page{ padding:24px 16px 64px; } .gallery{ grid-template-columns:1fr; } .music-toggle{ right:14px; bottom:14px; padding:9px 12px; font-size:10px; } .card img{ min-height:280px; } .card .caption{ position:static; margin:0; } }
+  </style>
+</head>
+<body>
+  <button class="music-toggle" id="music-toggle" type="button" aria-pressed="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v10.4a2.6 2.6 0 1 1-2.2-2.57V8.2l6-1.8v6.4a2.6 2.6 0 1 1-2.2-2.57"></path></svg>
+    <span>Music Off</span>
+  </button>
+  <audio id="site-audio" loop preload="auto"></audio>
+  <div class="page">
+    <header>
+      <div class="brand">Kahaani Baaz</div>
+      <div class="nav">
+        <a href="index.html">Home</a>
+      </div>
+    </header>
+    <h1 id="page-title">Gallery</h1>
+    <p class="intro" id="page-intro">A growing collection of stories.</p>
+    <div class="gallery" id="gallery"></div>
+  </div>
+
+  <script>
+    function slugify(value){
+      return String(value || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'section';
+    }
+
+    function titleFromSlug(slug){
+      return slug.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ');
+    }
+
+    async function loadSectionPage(){
+      const params = new URLSearchParams(window.location.search);
+      const slug = slugify(params.get('section') || 'portraits');
+      const gallery = document.getElementById('gallery');
+      const title = document.getElementById('page-title');
+      const intro = document.getElementById('page-intro');
+
+      try {
+        const res = await fetch('/api/site', { cache: 'no-store' });
+        const data = res.ok ? await res.json() : {};
+        const sectionConfig = (data.sections || []).find(item => slugify(item.slug || item.label) === slug) || null;
+        title.textContent = sectionConfig?.label || titleFromSlug(slug);
+        intro.textContent = sectionConfig?.intro || `A collection of ${titleFromSlug(slug).toLowerCase()} stories.`;
+      } catch (error) {
+        title.textContent = titleFromSlug(slug);
+        intro.textContent = `A collection of ${titleFromSlug(slug).toLowerCase()} stories.`;
+      }
+
+      try {
+        const res = await fetch(`/api/frames?category=${encodeURIComponent(slug)}`, { cache: 'no-store' });
+        if(!res.ok) throw new Error('API request failed');
+        const data = await res.json();
+        const items = (data.frames || []).filter(frame => (frame.category || '').toLowerCase() === slug);
+        gallery.innerHTML = items.length ? items.map(frame => `
+          <div class="card">
+            <img src="${frame.src}" alt="${frame.alt || ''}">
+            <div class="caption">${frame.tag || 'Untitled'}</div>
+          </div>
+        `).join('') : '<p style="color:var(--text-muted);">No images in this section yet.</p>';
+      } catch (error) {
+        gallery.innerHTML = '<p style="color:var(--text-muted);">No images in this section yet.</p>';
+      }
+    }
+
+    async function initMusicControl(){
+      const button = document.getElementById('music-toggle');
+      const audio = document.getElementById('site-audio');
+      const musicStateKey = 'kahaani-baaz-music-state';
+      if(!button || !audio) return;
+
+      try {
+        const res = await fetch('/api/site', { cache: 'no-store' });
+        const data = res.ok ? await res.json() : {};
+        const musicSrc = (data && data.music && data.music.src) ? data.music.src : '';
+
+        if(!musicSrc){
+          button.style.display = 'none';
+          return;
+        }
+
+        function updateButtonState(isPlaying){
+          button.classList.toggle('is-playing', isPlaying);
+          button.setAttribute('aria-pressed', String(isPlaying));
+          button.querySelector('span').textContent = isPlaying ? 'Music On' : 'Music Off';
+        }
+
+        function saveMusicState(isPlaying, currentTime){
+          try { localStorage.setItem(musicStateKey, JSON.stringify({ src: musicSrc, isPlaying, currentTime })); } catch (error) {}
+        }
+
+        function readMusicState(){
+          try { const saved = localStorage.getItem(musicStateKey); return saved ? JSON.parse(saved) : null; } catch (error) { return null; }
+        }
+
+        audio.src = musicSrc;
+        audio.preload = 'auto';
+        audio.volume = 0.7;
+
+        const savedState = readMusicState();
+        if(savedState && savedState.src === musicSrc && savedState.isPlaying){
+          audio.currentTime = savedState.currentTime || 0;
+          updateButtonState(true);
+        } else {
+          updateButtonState(false);
+        }
+
+        button.addEventListener('click', async ()=>{
+          try {
+            if(audio.paused){
+              await audio.play();
+              updateButtonState(true);
+              saveMusicState(true, audio.currentTime);
+            } else {
+              audio.pause();
+              updateButtonState(false);
+              saveMusicState(false, audio.currentTime);
+            }
+          } catch (error) {
+            console.error('Music toggle error', error);
+          }
+        });
+
+        audio.addEventListener('play', ()=>{ updateButtonState(true); saveMusicState(true, audio.currentTime); });
+        audio.addEventListener('pause', ()=>{ updateButtonState(false); saveMusicState(false, audio.currentTime); });
+        audio.addEventListener('timeupdate', ()=>{ if(!audio.paused){ saveMusicState(true, audio.currentTime); }});
+        window.addEventListener('beforeunload', ()=>{ saveMusicState(false, audio.currentTime); audio.pause(); });
+        document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ audio.pause(); saveMusicState(false, audio.currentTime); }});
+      } catch (error) {
+        button.style.display = 'none';
+      }
+    }
+
+    initMusicControl();
+    loadSectionPage();
+  </script>
+</body>
+</html>
