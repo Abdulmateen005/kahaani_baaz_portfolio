@@ -10,6 +10,25 @@ const dataPath = process.env.DATA_FILE ? path.resolve(process.env.DATA_FILE) : p
 const uploadDir = process.env.UPLOAD_DIR ? path.resolve(process.env.UPLOAD_DIR) : path.join(rootDir, 'images');
 const publicUploadPrefix = process.env.PUBLIC_UPLOAD_PREFIX || 'images';
 
+function loadEnvFile() {
+  const envPath = path.join(rootDir, '.env');
+  if (!fs.existsSync(envPath)) return;
+
+  const lines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || !trimmed.includes('=')) return;
+    const [rawKey, ...rawValueParts] = trimmed.split('=');
+    const key = rawKey.trim();
+    const value = rawValueParts.join('=').trim();
+    if (!process.env[key]) {
+      process.env[key] = value.replace(/^['"]|['"]$/g, '');
+    }
+  });
+}
+
+loadEnvFile();
+
 fs.mkdirSync(path.dirname(dataPath), { recursive: true });
 fs.mkdirSync(uploadDir, { recursive: true });
 
@@ -110,6 +129,229 @@ function sendJson(req, res, payload, statusCode = 200) {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'public, max-age=30, stale-while-revalidate=60'
   });
+}
+
+function slugifyText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'section';
+}
+
+function formatSectionLabel(section) {
+  return section.label || section.title || section.name || (section.slug ? section.slug.split('-').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ') : 'Section');
+}
+
+function normalizeChatText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenize(text) {
+  return normalizeChatText(text).split(' ').filter(Boolean);
+}
+
+function buildKnowledgeBase(data) {
+  const site = data.site || {};
+  const sections = Array.isArray(data.sections) ? data.sections : [];
+  const frames = Array.isArray(data.frames) ? data.frames : [];
+  const reels = Array.isArray(data.reels) ? data.reels : [];
+  const music = data.music || {};
+  const chunks = [];
+
+  const addChunk = (title, content) => {
+    if (content && String(content).trim()) {
+      chunks.push({ title, content: String(content).trim() });
+    }
+  };
+
+  const aboutText = [
+    site.name,
+    site.alias,
+    site.location,
+    site.heroSub,
+    ...(site.aboutParagraphs || [])
+  ].filter(Boolean).join(' ');
+
+  addChunk('About', aboutText);
+  addChunk('Contact', `${site.name} can be reached on Instagram at ${site.instagram || 'their social profile'} and is known as ${site.handle || 'the portfolio handle'}.`);
+  addChunk('Location', `${site.name} is based in ${site.location || 'Lahore, Pakistan'}.`);
+  addChunk('Sections', sections.length
+    ? sections.map(section => `${formatSectionLabel(section)} — ${section.intro || ''}`.trim()).join(' ')
+    : 'No extra sections have been added yet.');
+  addChunk('Frames', frames.length
+    ? frames.slice(0, 8).map(frame => `${frame.tag || frame.alt || 'Frame'} in ${frame.category || 'uncategorized'}`).join(' • ')
+    : 'No frames are available yet.');
+  addChunk('Reels', reels.length
+    ? reels.map(reel => reel.id || reel.src || 'Reel').join(' • ')
+    : 'No reels have been added yet.');
+  addChunk('Music', music.src ? `The site currently includes ${music.label || 'music'} audio.` : 'No music is currently configured.');
+
+  return chunks;
+}
+
+function scoreChunk(query, chunk) {
+  const lowerQuery = normalizeChatText(query);
+  const lowerContent = normalizeChatText(chunk.content);
+  const tokens = tokenize(lowerQuery);
+  let score = 0;
+
+  tokens.forEach(token => {
+    if (lowerContent.includes(token)) score += 2;
+  });
+
+  if (lowerQuery.includes('who') || lowerQuery.includes('about') || lowerQuery.includes('story')) score += 4;
+  if (lowerQuery.includes('contact') || lowerQuery.includes('instagram') || lowerQuery.includes('follow')) score += 4;
+  if (lowerQuery.includes('where') || lowerQuery.includes('location') || lowerQuery.includes('based')) score += 4;
+  if (lowerQuery.includes('section') || lowerQuery.includes('category') || lowerQuery.includes('page')) score += 4;
+  if (lowerQuery.includes('frame') || lowerQuery.includes('photo') || lowerQuery.includes('image') || lowerQuery.includes('gallery')) score += 4;
+  if (lowerQuery.includes('reel') || lowerQuery.includes('video') || lowerQuery.includes('motion')) score += 4;
+  if (lowerQuery.includes('music') || lowerQuery.includes('audio') || lowerQuery.includes('song')) score += 4;
+
+  if (chunk.title === 'About' && (lowerQuery.includes('who') || lowerQuery.includes('about') || lowerQuery.includes('story'))) score += 3;
+  if (chunk.title === 'Contact' && (lowerQuery.includes('contact') || lowerQuery.includes('instagram') || lowerQuery.includes('follow'))) score += 3;
+  if (chunk.title === 'Location' && (lowerQuery.includes('where') || lowerQuery.includes('location') || lowerQuery.includes('based'))) score += 3;
+  if (chunk.title === 'Sections' && (lowerQuery.includes('section') || lowerQuery.includes('category') || lowerQuery.includes('page'))) score += 3;
+  if (chunk.title === 'Frames' && (lowerQuery.includes('frame') || lowerQuery.includes('photo') || lowerQuery.includes('image') || lowerQuery.includes('gallery'))) score += 3;
+  if (chunk.title === 'Reels' && (lowerQuery.includes('reel') || lowerQuery.includes('video') || lowerQuery.includes('motion'))) score += 3;
+  if (chunk.title === 'Music' && (lowerQuery.includes('music') || lowerQuery.includes('audio') || lowerQuery.includes('song'))) score += 3;
+
+  return score;
+}
+
+function answerFromKnowledgeBase(query, data) {
+  const site = data.site || {};
+  const sections = Array.isArray(data.sections) ? data.sections : [];
+  const frames = Array.isArray(data.frames) ? data.frames : [];
+  const reels = Array.isArray(data.reels) ? data.reels : [];
+  const lowerQuery = normalizeChatText(query);
+  const chunks = buildKnowledgeBase(data)
+    .map(chunk => ({ ...chunk, score: scoreChunk(query, chunk) }))
+    .sort((a, b) => b.score - a.score);
+
+  const top = chunks[0] || { title: 'About', content: '' };
+  const secondary = chunks[1];
+
+  if (lowerQuery.includes('contact') || lowerQuery.includes('instagram') || lowerQuery.includes('follow')) {
+    return {
+      reply: `${site.name || 'The photographer'} can be followed on Instagram at ${site.instagram || 'their profile'} and the handle is ${site.handle || 'the portfolio handle'}.`,
+      sources: [top.title, secondary && secondary.title].filter(Boolean)
+    };
+  }
+
+  if (lowerQuery.includes('where') || lowerQuery.includes('location') || lowerQuery.includes('based')) {
+    return {
+      reply: `${site.name || 'The photographer'} is based in ${site.location || 'Lahore, Pakistan'}.`,
+      sources: [top.title, secondary && secondary.title].filter(Boolean)
+    };
+  }
+
+  if (lowerQuery.includes('section') || lowerQuery.includes('category') || lowerQuery.includes('page')) {
+    const labels = sections.length ? sections.map(section => formatSectionLabel(section)).join(', ') : 'the main portfolio sections';
+    return {
+      reply: `The portfolio currently highlights ${labels}.`,
+      sources: [top.title, secondary && secondary.title].filter(Boolean)
+    };
+  }
+
+  if (lowerQuery.includes('frame') || lowerQuery.includes('photo') || lowerQuery.includes('image') || lowerQuery.includes('gallery')) {
+    return {
+      reply: `There are ${frames.length || 0} frames available in the portfolio right now, and the latest work is organized into the visible sections on the site.`,
+      sources: [top.title, secondary && secondary.title].filter(Boolean)
+    };
+  }
+
+  if (lowerQuery.includes('reel') || lowerQuery.includes('video') || lowerQuery.includes('motion')) {
+    return {
+      reply: `The site includes ${reels.length || 0} reel${reels.length === 1 ? '' : 's'} and the work is presented in a motion-first format for the scroll experience.`,
+      sources: [top.title, secondary && secondary.title].filter(Boolean)
+    };
+  }
+
+  if (lowerQuery.includes('music')) {
+    return {
+      reply: `Music is ${data.music && data.music.src ? 'enabled with the current track label ' + (data.music.label || 'Music') + '.' : 'not currently configured.'}`,
+      sources: [top.title, secondary && secondary.title].filter(Boolean)
+    };
+  }
+
+  if (lowerQuery.includes('who') || lowerQuery.includes('about') || lowerQuery.includes('story')) {
+    return {
+      reply: `${site.name || 'This portfolio'} is a story-led photography practice built around street and documentary moments, with a focus on honest, unposed scenes and short-form video.`,
+      sources: [top.title, secondary && secondary.title].filter(Boolean)
+    };
+  }
+
+  if (top.score < 2) {
+    return {
+      reply: `I can answer questions about the portfolio, including its story, sections, frames, reels, contact details, and music.`,
+      sources: [top.title].filter(Boolean)
+    };
+  }
+
+  return {
+    reply: `I found this in the portfolio: ${top.content.slice(0, 220)}${top.content.length > 220 ? '…' : ''}`,
+    sources: [top.title, secondary && secondary.title].filter(Boolean)
+  };
+}
+
+async function getModelReply(query, data) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const context = JSON.stringify({
+      site: data.site || {},
+      sections: Array.isArray(data.sections) ? data.sections : [],
+      frames: Array.isArray(data.frames) ? data.frames.slice(0, 10) : [],
+      reels: Array.isArray(data.reels) ? data.reels : [],
+      music: data.music || {}
+    }, null, 2);
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+        temperature: 0.7,
+        max_tokens: 220,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a friendly assistant for a photography portfolio website. Answer clearly, warmly, and briefly using only the provided portfolio context. If you are unsure, say so plainly.'
+          },
+          {
+            role: 'user',
+            content: `Question: ${query}\n\nPortfolio context:\n${context}`
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      const normalized = errorText || 'OpenAI request failed';
+      if (normalized.includes('insufficient_quota') || normalized.includes('429') || normalized.includes('billing')) {
+        console.warn('OpenAI chatbot unavailable: quota or billing issue. Falling back to local answers.');
+      } else {
+        console.warn('OpenAI chatbot unavailable:', normalized);
+      }
+      return null;
+    }
+
+    const result = await response.json();
+    return result?.choices?.[0]?.message?.content?.trim() || null;
+  } catch (error) {
+    console.warn('OpenAI chatbot error', error.message || error);
+    return null;
+  }
 }
 
 function getContentType(filePath) {
@@ -230,6 +472,19 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === 'POST' && pathname === '/api/chat') {
+      const body = await readRequestBody(req);
+      const payload = JSON.parse(body.toString('utf8'));
+      const message = payload.message || '';
+      const data = readData();
+      const modelReply = await getModelReply(message, data);
+      const result = modelReply
+        ? { reply: modelReply, source: 'openai' }
+        : { ...answerFromKnowledgeBase(message, data), source: 'local' };
+      sendJson(req, res, result);
+      return;
+    }
+
     if (pathname === '/api/site') {
       sendJson(req, res, readData());
       return;
@@ -280,6 +535,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, () => {
   console.log(`Portfolio server running at http://localhost:${port}`);
+  console.log(`Chatbot AI mode: ${process.env.OPENAI_API_KEY ? 'enabled' : 'disabled'}`);
   
   // Initialize git config for auto-backups
   try {
