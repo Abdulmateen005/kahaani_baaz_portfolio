@@ -74,32 +74,21 @@
   </div>
 
   <script>
-    const fallbackData = {
-      frames: [
-        { src: 'images/frame-05-alley-watch.jpg', alt: 'Kitten watching from alley', tag: 'Alley Watch', category: 'randoms' },
-        { src: 'images/frame-06-afternoon-nap.jpg', alt: 'Kitten asleep on bench', tag: 'Afternoon Nap', category: 'randoms' }
-      ]
-    };
-
     async function loadCategoryPage(){
       const gallery = document.getElementById('gallery');
       try {
         const res = await fetch('/api/frames?category=randoms', { cache: 'no-store' });
         if(!res.ok) throw new Error('API request failed');
         const data = await res.json();
-        renderFrames(data.frames || []);
-      } catch (error) {
-        renderFrames(fallbackData.frames || []);
-      }
-
-      function renderFrames(frames){
-        const items = (frames || []).filter(frame => (frame.category || 'randoms') === 'randoms');
+        const items = (data.frames || []).filter(frame => (frame.category || 'randoms') === 'randoms');
         gallery.innerHTML = items.length ? items.map(frame => `
           <div class="card">
             <img src="${frame.src}" alt="${frame.alt || ''}">
             <div class="caption">${frame.tag || 'Untitled'}</div>
           </div>
         `).join('') : '<p style="color:var(--text-muted);">No random images yet.</p>';
+      } catch (error) {
+        gallery.innerHTML = '<p style="color:var(--text-muted);">No random images yet.</p>';
       }
     }
 

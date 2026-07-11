@@ -80,13 +80,36 @@ function sanitizeFileName(name) {
     .replace(/^-+|-+$/g, '') || 'upload';
 }
 
-function sendJson(res, payload, statusCode = 200) {
-  res.writeHead(statusCode, { 
+function respondWithBuffer(req, res, statusCode, buffer, headers = {}) {
+  const acceptEncoding = req.headers['accept-encoding'] || '';
+  const shouldCompress = buffer.length > 1024 && (acceptEncoding.includes('gzip') || acceptEncoding.includes('deflate'));
+
+  if (shouldCompress) {
+    const encoding = acceptEncoding.includes('gzip') ? 'gzip' : 'deflate';
+    const compressor = encoding === 'gzip' ? zlib.createGzip() : zlib.createDeflate();
+    const responseHeaders = { ...headers, 'Content-Encoding': encoding, 'Vary': 'Accept-Encoding' };
+
+    res.writeHead(statusCode, responseHeaders);
+    compressor.on('error', () => {
+      if (!res.headersSent) res.writeHead(500);
+      if (!res.destroyed) res.end();
+    });
+    compressor.pipe(res);
+    compressor.end(buffer);
+    return;
+  }
+
+  const responseHeaders = { ...headers, 'Content-Length': buffer.length };
+  res.writeHead(statusCode, responseHeaders);
+  res.end(buffer);
+}
+
+function sendJson(req, res, payload, statusCode = 200) {
+  const body = Buffer.from(JSON.stringify(payload));
+  respondWithBuffer(req, res, statusCode, body, {
     'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'public, max-age=60',
-    'Vary': 'Accept-Encoding'
+    'Cache-Control': 'public, max-age=30, stale-while-revalidate=60'
   });
-  res.end(JSON.stringify(payload));
 }
 
 function getContentType(filePath) {
@@ -107,25 +130,38 @@ function getContentType(filePath) {
   }
 }
 
-function serveFile(res, filePath) {
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
+function serveFile(req, res, filePath) {
+  fs.stat(filePath, (statErr, stat) => {
+    if (statErr || !stat.isFile()) {
       res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
       res.end('Not found');
       return;
     }
 
-    // ⚡ OPTIMIZATION: Add aggressive caching for static assets
-    const cacheControl = filePath.endsWith('.html') 
-      ? 'public, max-age=3600' // HTML: 1 hour
-      : 'public, max-age=31536000'; // Static: 1 year
-    
-    res.writeHead(200, { 
-      'Content-Type': getContentType(filePath),
-      'Cache-Control': cacheControl,
-      'Vary': 'Accept-Encoding'
+    const etag = `"${stat.size}-${Math.floor(stat.mtimeMs / 1000)}"`;
+    if (req.headers['if-none-match'] === etag) {
+      res.writeHead(304, { ETag: etag, 'Cache-Control': filePath.endsWith('.html') ? 'public, max-age=300, must-revalidate' : 'public, max-age=31536000, immutable' });
+      res.end();
+      return;
+    }
+
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not found');
+        return;
+      }
+
+      const cacheControl = filePath.endsWith('.html')
+        ? 'public, max-age=300, must-revalidate'
+        : 'public, max-age=31536000, immutable';
+
+      respondWithBuffer(req, res, 200, data, {
+        'Content-Type': getContentType(filePath),
+        'Cache-Control': cacheControl,
+        ETag: etag
+      });
     });
-    res.end(data);
   });
 }
 
@@ -138,7 +174,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readRequestBody(req);
       const payload = JSON.parse(body.toString('utf8'));
       writeData(payload);
-      sendJson(res, { ok: true });
+      sendJson(req, res, { ok: true });
       return;
     }
 
@@ -149,12 +185,12 @@ const server = http.createServer(async (req, res) => {
       fs.mkdirSync(uploadDir, { recursive: true });
       const targetPath = path.join(uploadDir, safeName);
       fs.writeFileSync(targetPath, body);
-      sendJson(res, { ok: true, path: `${publicUploadPrefix}/${safeName}` });
+      sendJson(req, res, { ok: true, path: `${publicUploadPrefix}/${safeName}` });
       return;
     }
 
     if (pathname === '/api/site') {
-      sendJson(res, readData());
+      sendJson(req, res, readData());
       return;
     }
 
@@ -165,17 +201,17 @@ const server = http.createServer(async (req, res) => {
         if (!category) return true;
         return (frame.category || '').toLowerCase() === category.toLowerCase();
       });
-      sendJson(res, { frames });
+      sendJson(req, res, { frames });
       return;
     }
 
     if (pathname === '/health') {
-      sendJson(res, { status: 'ok' });
+      sendJson(req, res, { status: 'ok' });
       return;
     }
 
     if (pathname === '/data.json') {
-      serveFile(res, dataPath);
+      serveFile(req, res, dataPath);
       return;
     }
 
@@ -190,10 +226,10 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-      serveFile(res, filePath);
+      serveFile(req, res, filePath);
     } else {
       const fallbackPath = path.join(rootDir, 'index.html');
-      serveFile(res, fallbackPath);
+      serveFile(req, res, fallbackPath);
     }
   } catch (error) {
     res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
