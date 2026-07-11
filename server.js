@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const zlib = require('zlib');
+const { getContextAwareReply, getModelReplyFromContext } = require('./chatbot-rag');
 
 const rootDir = __dirname;
 const port = process.env.PORT || 3000;
@@ -224,134 +225,11 @@ function scoreChunk(query, chunk) {
 }
 
 function answerFromKnowledgeBase(query, data) {
-  const site = data.site || {};
-  const sections = Array.isArray(data.sections) ? data.sections : [];
-  const frames = Array.isArray(data.frames) ? data.frames : [];
-  const reels = Array.isArray(data.reels) ? data.reels : [];
-  const lowerQuery = normalizeChatText(query);
-  const chunks = buildKnowledgeBase(data)
-    .map(chunk => ({ ...chunk, score: scoreChunk(query, chunk) }))
-    .sort((a, b) => b.score - a.score);
-
-  const top = chunks[0] || { title: 'About', content: '' };
-  const secondary = chunks[1];
-
-  if (lowerQuery.includes('contact') || lowerQuery.includes('instagram') || lowerQuery.includes('follow')) {
-    return {
-      reply: `${site.name || 'The photographer'} can be followed on Instagram at ${site.instagram || 'their profile'} and the handle is ${site.handle || 'the portfolio handle'}.`,
-      sources: [top.title, secondary && secondary.title].filter(Boolean)
-    };
-  }
-
-  if (lowerQuery.includes('where') || lowerQuery.includes('location') || lowerQuery.includes('based')) {
-    return {
-      reply: `${site.name || 'The photographer'} is based in ${site.location || 'Lahore, Pakistan'}.`,
-      sources: [top.title, secondary && secondary.title].filter(Boolean)
-    };
-  }
-
-  if (lowerQuery.includes('section') || lowerQuery.includes('category') || lowerQuery.includes('page')) {
-    const labels = sections.length ? sections.map(section => formatSectionLabel(section)).join(', ') : 'the main portfolio sections';
-    return {
-      reply: `The portfolio currently highlights ${labels}.`,
-      sources: [top.title, secondary && secondary.title].filter(Boolean)
-    };
-  }
-
-  if (lowerQuery.includes('frame') || lowerQuery.includes('photo') || lowerQuery.includes('image') || lowerQuery.includes('gallery')) {
-    return {
-      reply: `There are ${frames.length || 0} frames available in the portfolio right now, and the latest work is organized into the visible sections on the site.`,
-      sources: [top.title, secondary && secondary.title].filter(Boolean)
-    };
-  }
-
-  if (lowerQuery.includes('reel') || lowerQuery.includes('video') || lowerQuery.includes('motion')) {
-    return {
-      reply: `The site includes ${reels.length || 0} reel${reels.length === 1 ? '' : 's'} and the work is presented in a motion-first format for the scroll experience.`,
-      sources: [top.title, secondary && secondary.title].filter(Boolean)
-    };
-  }
-
-  if (lowerQuery.includes('music')) {
-    return {
-      reply: `Music is ${data.music && data.music.src ? 'enabled with the current track label ' + (data.music.label || 'Music') + '.' : 'not currently configured.'}`,
-      sources: [top.title, secondary && secondary.title].filter(Boolean)
-    };
-  }
-
-  if (lowerQuery.includes('who') || lowerQuery.includes('about') || lowerQuery.includes('story')) {
-    return {
-      reply: `${site.name || 'This portfolio'} is a story-led photography practice built around street and documentary moments, with a focus on honest, unposed scenes and short-form video.`,
-      sources: [top.title, secondary && secondary.title].filter(Boolean)
-    };
-  }
-
-  if (top.score < 2) {
-    return {
-      reply: `I can answer questions about the portfolio, including its story, sections, frames, reels, contact details, and music.`,
-      sources: [top.title].filter(Boolean)
-    };
-  }
-
-  return {
-    reply: `I found this in the portfolio: ${top.content.slice(0, 220)}${top.content.length > 220 ? '…' : ''}`,
-    sources: [top.title, secondary && secondary.title].filter(Boolean)
-  };
+  return getContextAwareReply(query, data);
 }
 
 async function getModelReply(query, data) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-
-  try {
-    const context = JSON.stringify({
-      site: data.site || {},
-      sections: Array.isArray(data.sections) ? data.sections : [],
-      frames: Array.isArray(data.frames) ? data.frames.slice(0, 10) : [],
-      reels: Array.isArray(data.reels) ? data.reels : [],
-      music: data.music || {}
-    }, null, 2);
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
-        temperature: 0.7,
-        max_tokens: 220,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a friendly assistant for a photography portfolio website. Answer clearly, warmly, and briefly using only the provided portfolio context. If you are unsure, say so plainly.'
-          },
-          {
-            role: 'user',
-            content: `Question: ${query}\n\nPortfolio context:\n${context}`
-          }
-        ]
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      const normalized = errorText || 'OpenAI request failed';
-      if (normalized.includes('insufficient_quota') || normalized.includes('429') || normalized.includes('billing')) {
-        console.warn('OpenAI chatbot unavailable: quota or billing issue. Falling back to local answers.');
-      } else {
-        console.warn('OpenAI chatbot unavailable:', normalized);
-      }
-      return null;
-    }
-
-    const result = await response.json();
-    return result?.choices?.[0]?.message?.content?.trim() || null;
-  } catch (error) {
-    console.warn('OpenAI chatbot error', error.message || error);
-    return null;
-  }
+  return getModelReplyFromContext(query, data);
 }
 
 function getContentType(filePath) {
