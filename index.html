@@ -368,7 +368,7 @@ const fallbackData = {
     { id: 'frame-03', src: 'images/1783618968493-whatsapp-image-2026-07-09-at-9.48.29-pm.jpeg', alt: 'Uploaded portrait image', tag: 'FRAME_03 — PORTRAIT', category: 'portraits', feature: false },
     { id: 'frame-04', src: 'images/1783619335887-whatsapp-image-2026-07-09-at-9.48.30-pm-1-.jpeg', alt: 'Uploaded portrait image', tag: 'FRAME_04 — PORTRAIT', category: 'portraits', feature: false }
   ],
-  music: { src: 'images/bg-music-islamabad-sunrise.mp3', label: 'Islamabad Sunrise' },
+  music: { src: '', label: 'Islamabad Sunrise' },
   reels: [
     { src: 'images/reel-1783602001093-whatsapp-video-2026-07-09-at-4.22.55-pm.mp4' },
     { id: 'reel-1783602445800', src: 'images/reel-1783602445316-whatsapp-video-2026-07-09-at-4.29.16-pm.mp4' }
@@ -389,8 +389,7 @@ async function init(){
   const frames = data.frames || [];
   const reels = data.reels && Array.isArray(data.reels) ? data.reels : (data.reel ? [data.reel] : []);
   const music = data.music;
-  const defaultMusicSrc = 'images/u_98673jp944-islamabad-sunrise-310993.mp3';
-  const resolvedMusicSrc = (music && music.src && music.src !== 'images/bg-music-islamabad-sunrise.mp3') ? music.src : defaultMusicSrc;
+  const musicSrc = (music && music.src) ? music.src : '';
 
   const categories = ['portraits', 'street-style', 'randoms'];
   const categoryLabels = {
@@ -558,6 +557,11 @@ async function init(){
     const musicStateKey = 'kahaani-baaz-music-state';
     if(!button || !audio) return;
 
+    if(!src){
+      button.style.display = 'none';
+      return;
+    }
+
     function updateButtonState(isPlaying){
       button.classList.toggle('is-playing', isPlaying);
       button.setAttribute('aria-pressed', String(isPlaying));
@@ -630,7 +634,7 @@ async function init(){
     });
   }
 
-  initMusicControl(resolvedMusicSrc);
+  initMusicControl(musicSrc);
 
   const io = new IntersectionObserver((entries)=>{
     entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); } });

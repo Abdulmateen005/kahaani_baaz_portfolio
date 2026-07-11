@@ -104,9 +104,14 @@
 
     const button = document.getElementById('music-toggle');
     const audio = document.getElementById('site-audio');
-    const musicSrc = 'images/u_98673jp944-islamabad-sunrise-310993.mp3';
+    const musicSrc = '';
     const musicStateKey = 'kahaani-baaz-music-state';
     if(button && audio){
+      if(!musicSrc){
+        button.style.display = 'none';
+        return;
+      }
+
       function updateButtonState(isPlaying){
         button.classList.toggle('is-playing', isPlaying);
         button.setAttribute('aria-pressed', String(isPlaying));
