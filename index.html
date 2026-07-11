@@ -281,6 +281,17 @@
     color:var(--text-muted); text-transform:uppercase;
   }
 
+  .music-toggle{
+    position:fixed; right:20px; bottom:20px; z-index:80;
+    display:inline-flex; align-items:center; gap:8px;
+    border:1px solid var(--hairline); background:rgba(13,11,9,0.78);
+    color:var(--text-primary); padding:10px 14px; border-radius:999px;
+    cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:11px;
+    letter-spacing:0.12em; text-transform:uppercase; backdrop-filter:blur(8px);
+  }
+  .music-toggle.is-playing{ border-color:var(--accent-gold); color:var(--accent-gold); }
+  .music-toggle svg{ width:14px; height:14px; }
+
   @media (max-width: 960px){
     .about-grid{ grid-template-columns:1fr; gap:42px; }
     .frame-category-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
@@ -304,6 +315,7 @@
   @media (max-width: 640px){
     header{ padding:16px 20px; }
     nav ul{ gap:10px 14px; }
+    .music-toggle{ right:14px; bottom:14px; padding:9px 12px; font-size:10px; }
     nav a{ font-size:10px; }
     .hero{ padding:120px 20px 90px; }
     .hero-eyebrow{ font-size:11px; margin-bottom:16px; }
@@ -326,6 +338,11 @@
 <body>
 
 <div class="grain"></div>
+<button class="music-toggle" id="music-toggle" type="button" aria-pressed="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v10.4a2.6 2.6 0 1 1-2.2-2.57V8.2l6-1.8v6.4a2.6 2.6 0 1 1-2.2-2.57"></path></svg>
+  <span>Music Off</span>
+</button>
+<audio id="site-audio" loop preload="auto"></audio>
 <div id="app">
   <div class="load-state mono">Loading…</div>
 </div>
@@ -372,6 +389,8 @@ async function init(){
   const frames = data.frames || [];
   const reels = data.reels && Array.isArray(data.reels) ? data.reels : (data.reel ? [data.reel] : []);
   const music = data.music;
+  const defaultMusicSrc = 'images/u_98673jp944-islamabad-sunrise-310993.mp3';
+  const resolvedMusicSrc = (music && music.src && music.src !== 'images/bg-music-islamabad-sunrise.mp3') ? music.src : defaultMusicSrc;
 
   const categories = ['portraits', 'street-style', 'randoms'];
   const categoryLabels = {
@@ -532,6 +551,34 @@ async function init(){
     <span>${escapeHTML(s.location)}</span>
   </footer>
   `;
+
+  function initMusicControl(src){
+    const button = document.getElementById('music-toggle');
+    const audio = document.getElementById('site-audio');
+    if(!button || !audio) return;
+    audio.src = src;
+    audio.load();
+
+    button.addEventListener('click', async ()=>{
+      try{
+        if(audio.paused){
+          await audio.play();
+          button.classList.add('is-playing');
+          button.setAttribute('aria-pressed', 'true');
+          button.querySelector('span').textContent = 'Music On';
+        } else {
+          audio.pause();
+          button.classList.remove('is-playing');
+          button.setAttribute('aria-pressed', 'false');
+          button.querySelector('span').textContent = 'Music Off';
+        }
+      } catch(err){
+        console.error('Music toggle error', err);
+      }
+    });
+  }
+
+  initMusicControl(resolvedMusicSrc);
 
   const io = new IntersectionObserver((entries)=>{
     entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); } });
