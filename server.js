@@ -145,23 +145,64 @@ function serveFile(req, res, filePath) {
       return;
     }
 
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-        res.end('Not found');
+    const cacheControl = filePath.endsWith('.html')
+      ? 'public, max-age=300, must-revalidate'
+      : 'public, max-age=31536000, immutable';
+
+    const rangeHeader = req.headers.range;
+    const size = stat.size;
+    const contentType = getContentType(filePath);
+
+    if (rangeHeader && rangeHeader.startsWith('bytes=')) {
+      const [rangeUnit, rangeValue] = rangeHeader.split('=');
+      if (rangeUnit !== 'bytes') {
+        res.writeHead(416, { 'Content-Range': `bytes */${size}`, 'Accept-Ranges': 'bytes' });
+        res.end();
         return;
       }
 
-      const cacheControl = filePath.endsWith('.html')
-        ? 'public, max-age=300, must-revalidate'
-        : 'public, max-age=31536000, immutable';
+      const [startStr, endStr] = rangeValue.split('-');
+      const start = Number.parseInt(startStr, 10);
+      const end = endStr ? Number.parseInt(endStr, 10) : size - 1;
 
-      respondWithBuffer(req, res, 200, data, {
-        'Content-Type': getContentType(filePath),
+      if (Number.isNaN(start) || start < 0 || start >= size) {
+        res.writeHead(416, { 'Content-Range': `bytes */${size}`, 'Accept-Ranges': 'bytes' });
+        res.end();
+        return;
+      }
+
+      const safeEnd = end < size - 1 ? end : size - 1;
+      const length = safeEnd - start + 1;
+      const stream = fs.createReadStream(filePath, { start, end: safeEnd });
+      res.writeHead(206, {
+        'Content-Type': contentType,
         'Cache-Control': cacheControl,
-        ETag: etag
+        ETag: etag,
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes ${start}-${safeEnd}/${size}`,
+        'Content-Length': length
       });
+      stream.on('error', () => {
+        if (!res.headersSent) res.writeHead(500);
+        if (!res.destroyed) res.end();
+      });
+      stream.pipe(res);
+      return;
+    }
+
+    const stream = fs.createReadStream(filePath);
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': cacheControl,
+      ETag: etag,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': size
     });
+    stream.on('error', () => {
+      if (!res.headersSent) res.writeHead(500);
+      if (!res.destroyed) res.end();
+    });
+    stream.pipe(res);
   });
 }
 

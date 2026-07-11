@@ -528,7 +528,7 @@ async function init(){
       <div class="reels-column">
       ${reels.length ? reels.map(r => `
         <div class="reel-card" data-reel-id="${escapeHTML(r.id || '')}">
-          <video src="${r.src}" muted loop playsinline preload="metadata" webkit-playsinline></video>
+          <video data-src="${escapeHTML(r.src || '')}" muted loop playsinline preload="none" webkit-playsinline poster="images/am.jpeg"></video>
           <div class="reel-overlay">
             <button class="mute-toggle mono">Unmute</button>
           </div>
@@ -649,16 +649,23 @@ async function init(){
   }, { threshold:0.12 });
   document.querySelectorAll('[data-reveal]').forEach(el=>io.observe(el));
 
-  // Reels: play when mostly visible, pause others, allow mute toggle
+  // Reels: load and play only when mostly visible, pause others, allow mute toggle
   try{
     const reelCards = document.querySelectorAll('.reel-card');
     if(reelCards.length){
+      const loadVideo = (video) => {
+        if(!video || video.dataset.loaded === 'true' || !video.dataset.src) return;
+        video.src = video.dataset.src;
+        video.load();
+        video.dataset.loaded = 'true';
+      };
+
       const playObserver = new IntersectionObserver((entries)=>{
         entries.forEach(entry=>{
           const card = entry.target;
           const vid = card.querySelector('video');
           if(entry.intersectionRatio > 0.55){
-            // pause others
+            loadVideo(vid);
             document.querySelectorAll('.reel-card video').forEach(v=>{ if(v !== vid) v.pause(); });
             vid.play().catch(()=>{});
           } else {
@@ -668,11 +675,11 @@ async function init(){
       }, { threshold:[0.25,0.55,0.75] });
       reelCards.forEach(c=> playObserver.observe(c));
 
-      // mute toggles
       document.querySelectorAll('.mute-toggle').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           const card = btn.closest('.reel-card');
           const v = card.querySelector('video');
+          loadVideo(v);
           v.muted = !v.muted;
           btn.textContent = v.muted ? 'Unmute' : 'Mute';
         });
