@@ -103,88 +103,98 @@
       }
     }
 
-    const button = document.getElementById('music-toggle');
-    const audio = document.getElementById('site-audio');
-    const musicSrc = '';
-    const musicStateKey = 'kahaani-baaz-music-state';
-    if(button && audio){
-      if(!musicSrc){
-        button.style.display = 'none';
-        return;
-      }
+    async function initMusicControl(){
+      const button = document.getElementById('music-toggle');
+      const audio = document.getElementById('site-audio');
+      const musicStateKey = 'kahaani-baaz-music-state';
+      if(!button || !audio) return;
 
-      function updateButtonState(isPlaying){
-        button.classList.toggle('is-playing', isPlaying);
-        button.setAttribute('aria-pressed', String(isPlaying));
-        button.querySelector('span').textContent = isPlaying ? 'Music On' : 'Music Off';
-      }
+      try {
+        const res = await fetch('/api/site', { cache: 'no-store' });
+        const data = res.ok ? await res.json() : {};
+        const musicSrc = (data && data.music && data.music.src) ? data.music.src : '';
 
-      function saveMusicState(isPlaying, currentTime){
-        try {
-          localStorage.setItem(musicStateKey, JSON.stringify({ src: musicSrc, isPlaying, currentTime }));
-        } catch (error) {}
-      }
+        if(!musicSrc){
+          button.style.display = 'none';
+          return;
+        }
 
-      function readMusicState(){
-        try {
-          const saved = localStorage.getItem(musicStateKey);
-          return saved ? JSON.parse(saved) : null;
-        } catch (error) { return null; }
-      }
+        function updateButtonState(isPlaying){
+          button.classList.toggle('is-playing', isPlaying);
+          button.setAttribute('aria-pressed', String(isPlaying));
+          button.querySelector('span').textContent = isPlaying ? 'Music On' : 'Music Off';
+        }
 
-      audio.src = musicSrc;
-      audio.preload = 'auto';
-      audio.volume = 0.7;
+        function saveMusicState(isPlaying, currentTime){
+          try {
+            localStorage.setItem(musicStateKey, JSON.stringify({ src: musicSrc, isPlaying, currentTime }));
+          } catch (error) {}
+        }
 
-      const savedState = readMusicState();
-      if(savedState && savedState.src === musicSrc && savedState.isPlaying){
-        audio.currentTime = savedState.currentTime || 0;
-        updateButtonState(true);
-      } else {
-        updateButtonState(false);
-      }
+        function readMusicState(){
+          try {
+            const saved = localStorage.getItem(musicStateKey);
+            return saved ? JSON.parse(saved) : null;
+          } catch (error) { return null; }
+        }
 
-      button.addEventListener('click', async ()=>{
-        try {
-          if(audio.paused){
-            await audio.play();
-            updateButtonState(true);
+        audio.src = musicSrc;
+        audio.preload = 'auto';
+        audio.volume = 0.7;
+
+        const savedState = readMusicState();
+        if(savedState && savedState.src === musicSrc && savedState.isPlaying){
+          audio.currentTime = savedState.currentTime || 0;
+          updateButtonState(true);
+        } else {
+          updateButtonState(false);
+        }
+
+        button.addEventListener('click', async ()=>{
+          try {
+            if(audio.paused){
+              await audio.play();
+              updateButtonState(true);
+              saveMusicState(true, audio.currentTime);
+            } else {
+              audio.pause();
+              updateButtonState(false);
+              saveMusicState(false, audio.currentTime);
+            }
+          } catch (error) {
+            console.error('Music toggle error', error);
+          }
+        });
+
+        audio.addEventListener('play', ()=>{
+          updateButtonState(true);
+          saveMusicState(true, audio.currentTime);
+        });
+        audio.addEventListener('pause', ()=>{
+          updateButtonState(false);
+          saveMusicState(false, audio.currentTime);
+        });
+        audio.addEventListener('timeupdate', ()=>{
+          if(!audio.paused){
             saveMusicState(true, audio.currentTime);
-          } else {
+          }
+        });
+        window.addEventListener('beforeunload', ()=>{
+          saveMusicState(false, audio.currentTime);
+          audio.pause();
+        });
+        document.addEventListener('visibilitychange', ()=>{
+          if(document.hidden){
             audio.pause();
-            updateButtonState(false);
             saveMusicState(false, audio.currentTime);
           }
-        } catch (error) {
-          console.error('Music toggle error', error);
-        }
-      });
-
-      audio.addEventListener('play', ()=>{
-        updateButtonState(true);
-        saveMusicState(true, audio.currentTime);
-      });
-      audio.addEventListener('pause', ()=>{
-        updateButtonState(false);
-        saveMusicState(false, audio.currentTime);
-      });
-      audio.addEventListener('timeupdate', ()=>{
-        if(!audio.paused){
-          saveMusicState(true, audio.currentTime);
-        }
-      });
-      window.addEventListener('beforeunload', ()=>{
-        saveMusicState(false, audio.currentTime);
-        audio.pause();
-      });
-      document.addEventListener('visibilitychange', ()=>{
-        if(document.hidden){
-          audio.pause();
-          saveMusicState(false, audio.currentTime);
-        }
-      });
+        });
+      } catch (error) {
+        button.style.display = 'none';
+      }
     }
 
+    initMusicControl();
     loadCategoryPage();
   </script>
 </body>
