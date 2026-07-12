@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const zlib = require('zlib');
-const { getContextAwareReply, getModelReplyFromContext } = require('./chatbot-rag');
 
 const rootDir = __dirname;
 const port = process.env.PORT || 3000;
@@ -350,19 +349,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    if (req.method === 'POST' && pathname === '/api/chat') {
-      const body = await readRequestBody(req);
-      const payload = JSON.parse(body.toString('utf8'));
-      const message = payload.message || '';
-      const data = readData();
-      const modelReply = await getModelReply(message, data);
-      const result = modelReply
-        ? { reply: modelReply, source: 'openai' }
-        : { ...answerFromKnowledgeBase(message, data), source: 'local' };
-      sendJson(req, res, result);
-      return;
-    }
-
     if (pathname === '/api/site') {
       sendJson(req, res, readData());
       return;
@@ -413,8 +399,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, () => {
   console.log(`Portfolio server running at http://localhost:${port}`);
-  console.log(`Chatbot AI mode: ${process.env.OPENAI_API_KEY ? 'enabled' : 'disabled'}`);
-  
+
   // Initialize git config for auto-backups
   try {
     execSync('git rev-parse --git-dir', { cwd: rootDir, stdio: 'pipe' });

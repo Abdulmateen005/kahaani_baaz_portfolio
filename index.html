@@ -292,35 +292,6 @@
   .music-toggle.is-playing{ border-color:var(--accent-gold); color:var(--accent-gold); }
   .music-toggle svg{ width:14px; height:14px; }
 
-  .chatbot-shell{
-    position:fixed; right:20px; bottom:78px; z-index:85; width:min(360px, calc(100vw - 28px));
-  }
-  .chatbot-toggle{
-    width:100%; border:1px solid var(--hairline); background:rgba(13,11,9,0.9);
-    color:var(--text-primary); padding:12px 14px; border-radius:999px;
-    cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:11px;
-    letter-spacing:0.12em; text-transform:uppercase; backdrop-filter:blur(8px);
-    box-shadow:0 10px 30px rgba(0,0,0,0.24);
-  }
-  .chatbot-panel{
-    display:none; margin-top:10px; border:1px solid var(--hairline); background:rgba(13,11,9,0.96);
-    border-radius:18px; overflow:hidden; box-shadow:0 16px 40px rgba(0,0,0,0.28);
-  }
-  .chatbot-panel.open{ display:flex; flex-direction:column; }
-  .chatbot-header{ display:flex; justify-content:space-between; align-items:flex-start; padding:14px 14px 10px; border-bottom:1px solid var(--hairline); }
-  .chatbot-header strong{ font-size:14px; display:block; }
-  .chatbot-header p{ font-family:'IBM Plex Mono', monospace; color:var(--text-muted); font-size:11px; margin-top:4px; }
-  .chatbot-close{ background:none; border:none; color:var(--text-primary); cursor:pointer; font-size:20px; }
-  .chatbot-messages{ display:flex; flex-direction:column; gap:8px; padding:12px; max-height:260px; overflow:auto; }
-  .chatbot-message{ padding:9px 11px; border-radius:12px; font-size:13px; line-height:1.5; max-width:88%; }
-  .chatbot-message.user{ align-self:flex-end; background:var(--accent-gold); color:#0d0b09; }
-  .chatbot-message.bot{ align-self:flex-start; background:rgba(255,255,255,0.06); color:var(--text-primary); }
-  .chatbot-suggestions{ display:flex; flex-wrap:wrap; gap:8px; padding:0 12px 12px; }
-  .chatbot-chip{ border:1px solid var(--hairline); background:rgba(255,255,255,0.04); color:var(--text-primary); padding:7px 9px; border-radius:999px; cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:10.5px; letter-spacing:0.08em; text-transform:uppercase; }
-  .chatbot-form{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--hairline); }
-  .chatbot-form input{ flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--hairline); color:var(--text-primary); padding:10px 12px; border-radius:999px; font:inherit; }
-  .chatbot-form button{ border:none; background:var(--accent-gold); color:#0d0b09; padding:10px 12px; border-radius:999px; cursor:pointer; font-family:'IBM Plex Mono', monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase; }
-
   @media (max-width: 960px){
     .about-grid{ grid-template-columns:1fr; gap:42px; }
     .frame-category-grid{ grid-template-columns:repeat(2, minmax(0, 1fr)); }
@@ -586,31 +557,6 @@ async function init(){
     <span>© ${new Date().getFullYear()} ${escapeHTML(s.alias)} — ${escapeHTML(s.name)}</span>
     <span>${escapeHTML(s.location)}</span>
   </footer>
-
-  <div class="chatbot-shell">
-    <button class="chatbot-toggle" id="chatbot-toggle" type="button">Ask Kahaani Bot</button>
-    <div class="chatbot-panel" id="chatbot-panel">
-      <div class="chatbot-header">
-        <div>
-          <strong>Kahaani Bot</strong>
-          <p>Ask about the portfolio</p>
-        </div>
-        <button class="chatbot-close" id="chatbot-close" type="button" aria-label="Close chatbot">×</button>
-      </div>
-      <div class="chatbot-messages" id="chatbot-messages">
-        <div class="chatbot-message bot">Hi! I can answer questions about the photographer, sections, frames, reels, music, and contact details.</div>
-      </div>
-      <div class="chatbot-suggestions">
-        <button class="chatbot-chip" type="button" data-question="Who is Abdul Mateen Javaid?">Who are you?</button>
-        <button class="chatbot-chip" type="button" data-question="What sections are available?">Sections</button>
-        <button class="chatbot-chip" type="button" data-question="How can I contact you?">Contact</button>
-      </div>
-      <form class="chatbot-form" id="chatbot-form">
-        <input id="chatbot-input" type="text" placeholder="Ask about the portfolio" autocomplete="off" />
-        <button type="submit">Send</button>
-      </form>
-    </div>
-  </div>
   `;
 
   function initMusicControl(src){
@@ -697,75 +643,6 @@ async function init(){
   }
 
   initMusicControl(musicSrc);
-
-  function initChatbot(){
-    const toggle = document.getElementById('chatbot-toggle');
-    const panel = document.getElementById('chatbot-panel');
-    const closeButton = document.getElementById('chatbot-close');
-    const form = document.getElementById('chatbot-form');
-    const input = document.getElementById('chatbot-input');
-    const messages = document.getElementById('chatbot-messages');
-    const chips = document.querySelectorAll('.chatbot-chip');
-
-    if (!toggle || !panel || !form || !input || !messages) return;
-
-    const addMessage = (text, role) => {
-      const bubble = document.createElement('div');
-      bubble.className = `chatbot-message ${role}`;
-      bubble.textContent = text;
-      messages.appendChild(bubble);
-      messages.scrollTop = messages.scrollHeight;
-    };
-
-    const replaceLastMessage = (text) => {
-      const last = messages.querySelector('.chatbot-message:last-child');
-      if (last) last.textContent = text;
-    };
-
-    toggle.addEventListener('click', () => {
-      panel.classList.toggle('open');
-      if (panel.classList.contains('open')) input.focus();
-    });
-
-    if (closeButton) {
-      closeButton.addEventListener('click', () => panel.classList.remove('open'));
-    }
-
-    chips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        if (chip.dataset.question) {
-          input.value = chip.dataset.question;
-          input.focus();
-          form.requestSubmit();
-        }
-      });
-    });
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const message = input.value.trim();
-      if (!message) return;
-
-      addMessage(message, 'user');
-      input.value = '';
-      addMessage('Thinking…', 'bot');
-
-      try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
-        });
-
-        const data = await response.json();
-        replaceLastMessage(data.reply || 'I could not answer that right now.');
-      } catch (err) {
-        replaceLastMessage('The assistant is unavailable right now.');
-      }
-    });
-  }
-
-  initChatbot();
 
   const io = new IntersectionObserver((entries)=>{
     entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); } });
